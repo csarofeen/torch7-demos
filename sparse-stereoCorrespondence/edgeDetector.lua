@@ -10,7 +10,8 @@ function edgeDetector(input,kSize)
 
    if kSize == 5 then
       ker = torch.Tensor(5,5):fill(-1)
-      ker[3][3] = 24
+      -- ker[3][3] = 24 -- all direction edges
+      ker[{ {},3 }] = 4 -- just vertical edges
    end
 
    output = image.convolve(input,ker)
