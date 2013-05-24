@@ -21,6 +21,7 @@ opt = lapp [[
 width  = 160 --320 --1600
 height = 120 --240 --896
 fps = 30
+corrWindowSize = 9  -- Correlation Window Size, MUST BE AN ODD NUMBER!!!
 -- dir = "demo_test"
 local neighborhood = image.gaussian1D(21)
 local normalisation = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3)
@@ -65,13 +66,18 @@ while true do
    b[{ 1,{},{} }] = iCameraL
    b[{ 2,{},{} }] = iCameraL
    b[{ 3,{},{} }] = iCameraL
-   for i = 1, height-height/8, height/8 do
-      for j = 1, width-width/8, width/8 do
+   for i = 1, height, height/8 do
+      for j = 1, width, width/8 do
          -- print('i = ' .. i .. ', j = ' .. j)
-         max1,y = torch.max(edgesL[{ {i, i+height/8}, {j, j+width/8} }],1)
+         max1,y = torch.max(edgesL[{ {i, i-1+height/8}, {j, j-1+width/8} }],1)
          max,x = torch.max(max1,2)
          x = x[1][1]
          y = y[1][x]
+
+         -- adding constrains to <x> and <y>
+         x = (x < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > width/8  - math.ceil(corrWindowSize/2)) and width/8  - math.ceil(corrWindowSize/2) or x
+         y = (y < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > height/8 - math.ceil(corrWindowSize/2)) and height/8 - math.ceil(corrWindowSize/2) or x
+
          if max[1][1] > opt.bgTh then
             a[{ {},y+i,x+j }] = 0
             a[{ 1,y+i,x+j }] = 1
