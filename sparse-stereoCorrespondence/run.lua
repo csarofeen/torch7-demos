@@ -4,11 +4,20 @@
 -- Alfredo Canziani, May 2013
 --------------------------------------------------------------------------------
 
+-- Requires --------------------------------------------------------------------
 require 'camera'
 require 'nnx'
--- Computing the edges of the LEFT image (RIGHT camera)
 require 'edgeDetector'
+require 'pl'
 
+-- Parsing the command line ----------------------------------------------------
+print '==> Processing options'
+opt = lapp [[
+--bgTh    (default .3)     Background filtering [0, 2.5]
+--kSize   (default 5)       Edge kernel size {3,5}
+]]
+
+-- Parameters ------------------------------------------------------------------
 width  = 160 --320 --1600
 height = 120 --240 --896
 fps = 30
@@ -39,8 +48,8 @@ iCameraR = image.rgb2y(iCameraRc)
 iCameraL = image.rgb2y(iCameraLc)
 
 -- f = 1
-opt = {}
-opt.kSize = 5
+-- maxEdge = 0
+-- minEdge = math.huge
 
 while true do
    sys.tic()
@@ -63,16 +72,33 @@ while true do
          max,x = torch.max(max1,2)
          x = x[1][1]
          y = y[1][x]
-         a[{ {},y+i,x+j }] = 0
-         a[{ 1,y+i,x+j }] = 1
+         if max[1][1] > opt.bgTh then
+            a[{ {},y+i,x+j }] = 0
+            a[{ 1,y+i,x+j }] = 1
+         else
+            a[{ {},y+i,x+j }] = 0
+            a[{ 2,y+i,x+j }] = 1
+         end
+         -- if max[1][1] > maxEdge then
+         --    maxEdge = max[1][1]
+         -- end
+         -- min = (edgesL[{ {i, i+height/8}, {j, j+width/8} }]):abs():min()
+         -- if min < minEdge then
+         --    minEdge = min
+         -- end
       end
    end
 
    -- edgesL = edgesL:cmul(edgesL:gt(2):float())
    win = image.display{win=win,image={a,b}, legend="FPS: ".. 1/sys.toc(), min=0, max=1, zoom=4}
    -- win = image.display{win=win,image={iCameraR,iCameraL}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
-   -- win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
+   win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
    -- image.savePNG(string.format("%s/frame_1_%05d.png",dir,f),a1)
+   -- if f == 100 then
+   --    f = 1
+   --    io.write('Threashold bgTh: ')
+   --    opt.bgTh = tonumber(io.read())
+   -- end
    -- f = f + 1
    -- print("FPS: ".. 1/sys.toc()) 
 end
