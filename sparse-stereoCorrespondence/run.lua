@@ -13,8 +13,9 @@ require 'pl'
 -- Parsing the command line ----------------------------------------------------
 print '==> Processing options'
 opt = lapp [[
---bgTh    (default .3)     Background filtering [0, 2.5]
---kSize   (default 5)       Edge kernel size {3,5}
+--bgTh                  (default .3)      Background filtering [0, 2.5]
+--kSize                 (default 5)       Edge kernel size {3,5}
+--showInterestPoints                      Show interest points
 ]]
 
 -- Parameters ------------------------------------------------------------------
@@ -58,14 +59,19 @@ while true do
    iCameraL = image.rgb2y(camera2:forward())
    edgesR = image.scale(edgeDetector(iCameraL,opt.kSize),width,height)[1]
    edgesL = image.scale(edgeDetector(iCameraR,opt.kSize),width,height)[1]
-   a = torch.Tensor(3,height,width)
-   b = torch.Tensor(3,height,width)
-   a[{ 1,{},{} }] = iCameraR
-   a[{ 2,{},{} }] = iCameraR
-   a[{ 3,{},{} }] = iCameraR
-   b[{ 1,{},{} }] = iCameraL
-   b[{ 2,{},{} }] = iCameraL
-   b[{ 3,{},{} }] = iCameraL
+
+   -- if we'd like to see the interest points
+   if opt.showInterestPoints then
+      a = torch.Tensor(3,height,width)
+      b = torch.Tensor(3,height,width)
+      a[{ 1,{},{} }] = iCameraR
+      a[{ 2,{},{} }] = iCameraR
+      a[{ 3,{},{} }] = iCameraR
+      b[{ 1,{},{} }] = iCameraL
+      b[{ 2,{},{} }] = iCameraL
+      b[{ 3,{},{} }] = iCameraL
+   end
+
    for i = 1, height, height/8 do
       for j = 1, width, width/8 do
          -- print('i = ' .. i .. ', j = ' .. j)
@@ -78,13 +84,17 @@ while true do
          x = (x < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > width/8  - math.ceil(corrWindowSize/2)) and width/8  - math.ceil(corrWindowSize/2) or x
          y = (y < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > height/8 - math.ceil(corrWindowSize/2)) and height/8 - math.ceil(corrWindowSize/2) or x
 
-         if max[1][1] > opt.bgTh then
-            a[{ {},y+i,x+j }] = 0
-            a[{ 1,y+i,x+j }] = 1
-         else
-            a[{ {},y+i,x+j }] = 0
-            a[{ 2,y+i,x+j }] = 1
+         -- if we'd like to see the interest points
+         if opt.showInterestPoints then
+            if max[1][1] > opt.bgTh then
+               a[{ {},y+i,x+j }] = 0
+               a[{ 1,y+i,x+j }] = 1
+            else
+               a[{ {},y+i,x+j }] = 0
+               a[{ 2,y+i,x+j }] = 1
+            end
          end
+
          -- if max[1][1] > maxEdge then
          --    maxEdge = max[1][1]
          -- end
@@ -96,9 +106,12 @@ while true do
    end
 
    -- edgesL = edgesL:cmul(edgesL:gt(2):float())
+   -- if we'd like to see the interest points
+   if opt.showInterestPoints then
    win = image.display{win=win,image={a,b}, legend="FPS: ".. 1/sys.toc(), min=0, max=1, zoom=4}
+   end
    -- win = image.display{win=win,image={iCameraR,iCameraL}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
-   win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
+   -- win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
    -- image.savePNG(string.format("%s/frame_1_%05d.png",dir,f),a1)
    -- if f == 100 then
    --    f = 1
