@@ -19,19 +19,14 @@ opt = lapp [[
 ]]
 
 -- Parameters ------------------------------------------------------------------
-width  = 160 --320 --1600
-height = 120 --240 --896
+width  = 160 --800
+height = 120 --600
 fps = 30
 corrWindowSize = 9  -- Correlation Window Size, MUST BE AN ODD NUMBER!!!
 -- dir = "demo_test"
-local neighborhood = image.gaussian1D(21)
+local neighborhood = image.gaussian1D(25)
 local normalisation = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3)
-
-
 -- sys.execute(string.format('mkdir -p %s',dir))
-
-camera1 = image.Camera{idx=1,width=width,height=height,fps=fps}
-camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
 
 ---------------------------------------------------------------------------------
 -- In this program camera1 is supposed to serve as the RIGHT camera,
@@ -40,14 +35,18 @@ camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
 
 -- iCameraX[c]: {i}mage from {Camera} {X} [{c}olour version; greyscale otherwise]
 ---------------------------------------------------------------------------------
+camera1 = image.Camera{idx=1,width=width,height=height,fps=fps}
+camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
+---------------------------------------------------------------------------------
 
-iCameraRc = camera1:forward() -- acquiring image from the RIGHT camera
-iCameraLc = camera2:forward() -- acquiring image from the LEFT camera
-
--- converting in B&W
-
-iCameraR = image.rgb2y(iCameraRc)
-iCameraL = image.rgb2y(iCameraLc)
+-- Some reference code ----------------------------------------------------------
+-- module = nn.SpatialConvolutionMM(1,64,9,9)
+-- print(module)
+-- print(#module.weight)
+-- module.bias = torch.zeros(module.bias)
+-- img = image.rgb2y(image.lena())
+-- module(img)
+---------------------------------------------------------------------------------
 
 -- f = 1
 -- maxEdge = 0
@@ -110,6 +109,8 @@ while true do
    if opt.showInterestPoints then
    win = image.display{win=win,image={a,b}, legend="FPS: ".. 1/sys.toc(), min=0, max=1, zoom=4}
    end
+   win = image.display{win=win,image={iCameraR}, min=0, max=1, legend=string.format('Right camera, FPS: %g', 1/sys.toc()), zoom=4}
+   win3 = image.display{win=win3,image={normalisation(iCameraR)}, legend=string.format('Right camera SCN, FPS: %g', 1/sys.toc()), zoom=4}
    -- win = image.display{win=win,image={iCameraR,iCameraL}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
    -- win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
    -- image.savePNG(string.format("%s/frame_1_%05d.png",dir,f),a1)
