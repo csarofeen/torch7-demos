@@ -16,6 +16,7 @@ opt = lapp [[
 --bgTh                  (default .3)      Background filtering [0, 2.5]
 --kSize                 (default 5)       Edge kernel size {3,5}
 --showInterestPoints                      Show interest points
+--SCN                   (default 7)       Spatial Contrastive Normalisation filter size
 ]]
 
 -- Parameters ------------------------------------------------------------------
@@ -24,7 +25,7 @@ height = 120 --600
 fps = 30
 corrWindowSize = 9  -- Correlation Window Size, MUST BE AN ODD NUMBER!!!
 -- dir = "demo_test"
-local neighborhood = image.gaussian1D(25)
+local neighborhood = image.gaussian1D(opt.SCN)
 local normalisation = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3)
 -- sys.execute(string.format('mkdir -p %s',dir))
 
