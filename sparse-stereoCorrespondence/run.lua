@@ -23,7 +23,8 @@ opt = lapp [[
 width  = 160 --800
 height = 120 --600
 fps = 30
-corrWindowSize = 9  -- Correlation Window Size, MUST BE AN ODD NUMBER!!!
+local corrWindowSize = 9  -- Correlation Window Size, MUST BE AN ODD NUMBER!!!
+local delta = math.floor(corrWindowSize / 2)
 -- dir = "demo_test"
 local neighborhood = image.gaussian1D(opt.SCN)
 local normalisation = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3)
@@ -50,14 +51,15 @@ camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
 ---------------------------------------------------------------------------------
 
 -- f = 1
--- maxEdge = 0
--- minEdge = math.huge
+--[[ to compute max (and useless min) of the edge map for visualisation
+maxEdge = 0
+minEdge = math.huge]]
 
 while true do
    sys.tic()
    iCameraR = image.rgb2y(camera1:forward())
    iCameraL = image.rgb2y(camera2:forward())
-   edgesR = image.scale(edgeDetector(iCameraL,opt.kSize),width,height)[1]
+   -- edgesR = image.scale(edgeDetector(iCameraL,opt.kSize),width,height)[1]
    edgesL = image.scale(edgeDetector(iCameraR,opt.kSize),width,height)[1]
 
    -- if we'd like to see the interest points
@@ -72,6 +74,7 @@ while true do
       b[{ 3,{},{} }] = iCameraL
    end
 
+   -- <for> over the 64 cells
    for i = 1, height, height/8 do
       for j = 1, width-16, (width-16)/8 do -- 16 is the dMax, i.e. maximum disparity value == 2 px per cell
          -- print('i = ' .. i .. ', j = ' .. j)
@@ -81,8 +84,8 @@ while true do
          y = y[1][x]
 
          -- adding constrains to <x> and <y>
-         x = (x < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > (width-16)/8  - math.ceil(corrWindowSize/2)) and (width-16)/8  - math.ceil(corrWindowSize/2) or x
-         y = (y < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > height/8 - math.ceil(corrWindowSize/2)) and height/8 - math.ceil(corrWindowSize/2) or x
+         x = (x < (delta+1)) and (delta+1) or (x > (width-16)/8  - (delta+1)) and (width-16)/8  - (delta+1) or x
+         y = (y < (delta+1)) and (delta+1) or (y > height/8      - (delta+1)) and height/8      - (delta+1) or y
 
          -- if we'd like to see the interest points
          if opt.showInterestPoints then
@@ -95,13 +98,14 @@ while true do
             end
          end
 
-         -- if max[1][1] > maxEdge then
-         --    maxEdge = max[1][1]
-         -- end
-         -- min = (edgesL[{ {i, i+height/8}, {j, j+width/8} }]):abs():min()
-         -- if min < minEdge then
-         --    minEdge = min
-         -- end
+         --[[ to compute max (and useless min) of the edge map for visualisation
+         if max[1][1] > maxEdge then
+            maxEdge = max[1][1]
+         end
+         min = (edgesL[{ {i, i+height/8}, {j, j+width/8} }]):abs():min()
+         if min < minEdge then
+            minEdge = min
+         end]]
       end
    end
 
