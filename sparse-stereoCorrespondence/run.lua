@@ -73,15 +73,15 @@ while true do
    end
 
    for i = 1, height, height/8 do
-      for j = 1, width, width/8 do
+      for j = 1, width-16, (width-16)/8 do -- 16 is the dMax, i.e. maximum disparity value == 2 px per cell
          -- print('i = ' .. i .. ', j = ' .. j)
-         max1,y = torch.max(edgesL[{ {i, i-1+height/8}, {j, j-1+width/8} }],1)
+         max1,y = torch.max(edgesL[{ {i, i-1+height/8}, {j, j-1+(width-16)/8} }],1)
          max,x = torch.max(max1,2)
          x = x[1][1]
          y = y[1][x]
 
          -- adding constrains to <x> and <y>
-         x = (x < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > width/8  - math.ceil(corrWindowSize/2)) and width/8  - math.ceil(corrWindowSize/2) or x
+         x = (x < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > (width-16)/8  - math.ceil(corrWindowSize/2)) and (width-16)/8  - math.ceil(corrWindowSize/2) or x
          y = (y < math.ceil(corrWindowSize/2)) and math.ceil(corrWindowSize/2) or (x > height/8 - math.ceil(corrWindowSize/2)) and height/8 - math.ceil(corrWindowSize/2) or x
 
          -- if we'd like to see the interest points
