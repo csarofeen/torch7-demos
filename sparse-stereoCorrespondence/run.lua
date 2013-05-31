@@ -110,7 +110,7 @@ while true do
    if opt.showInterestPoints then
    win = image.display{win=win,image={a,b}, legend="FPS: ".. 1/sys.toc(), min=0, max=1, zoom=4}
    end
-   win = image.display{win=win,image={iCameraR}, min=0, max=1, legend=string.format('Right camera, FPS: %g', 1/sys.toc()), zoom=4}
+   win1 = image.display{win=win1,image={iCameraR}, min=0, max=1, legend=string.format('Right camera, FPS: %g', 1/sys.toc()), zoom=4}
    win3 = image.display{win=win3,image={normalisation(iCameraR)}, legend=string.format('Right camera SCN, FPS: %g', 1/sys.toc()), zoom=4}
    -- win = image.display{win=win,image={iCameraR,iCameraL}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
    -- win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
