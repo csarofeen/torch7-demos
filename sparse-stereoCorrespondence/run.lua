@@ -28,6 +28,8 @@ local delta = math.floor(corrWindowSize / 2)
 -- dir = "demo_test"
 local neighborhood = image.gaussian1D(opt.SCN)
 local normalisation = nn.SpatialContrastiveNormalization(1, neighborhood, 1e-3)
+local conv = nn.SpatialConvolution(1,1,9,9) -- 1 layer input image, 1 filter of 9 x 9
+conv.bias = torch.zero(conv.bias) -- zeros the bias
 -- sys.execute(string.format('mkdir -p %s',dir))
 
 ---------------------------------------------------------------------------------
@@ -45,7 +47,7 @@ camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
 -- module = nn.SpatialConvolutionMM(1,64,9,9)
 -- print(module)
 -- print(#module.weight)
--- module.bias = torch.zeros(module.bias)
+-- module.bias = torch.zero(module.bias)
 -- img = image.rgb2y(image.lena())
 -- module(img)
 ---------------------------------------------------------------------------------
@@ -61,6 +63,8 @@ while true do
    iCameraL = image.rgb2y(camera2:forward())
    -- edgesR = image.scale(edgeDetector(iCameraL,opt.kSize),width,height)[1]
    edgesL = image.scale(edgeDetector(iCameraR,opt.kSize),width,height)[1]
+   iCameraRNorm = normalisation(iCameraR):clone()
+   iCameraLNorm = normalisation(iCameraL)
 
    -- if we'd like to see the interest points
    if opt.showInterestPoints then
@@ -74,6 +78,7 @@ while true do
       b[{ 3,{},{} }] = iCameraL
    end
 
+   dispMap = torch.zeros(8,8)
    -- <for> over the 64 cells
    for i = 1, height, height/8 do
       for j = 1, width-16, (width-16)/8 do -- 16 is the dMax, i.e. maximum disparity value == 2 px per cell
@@ -98,6 +103,11 @@ while true do
             end
          end
 
+         if max[1][1] > opt.bgTh then
+            conv.weight[1] = iCameraRNorm[{ {1},{y-delta,y+delta},{x-delta,x+delta} }]
+            _,d = torch.max(conv(iCameraLNorm[{ {1},{y-delta,y+delta},{x-delta,x+delta+16} }])[1],2)
+            dispMap[1+(i-1)/height*8][1+(j-1)/(width-16)*8] = d[1][1]
+         end
          --[[ to compute max (and useless min) of the edge map for visualisation
          if max[1][1] > maxEdge then
             maxEdge = max[1][1]
@@ -114,8 +124,9 @@ while true do
    if opt.showInterestPoints then
    win = image.display{win=win,image={a,b}, legend="FPS: ".. 1/sys.toc(), min=0, max=1, zoom=4}
    end
-   win1 = image.display{win=win1,image={iCameraR}, min=0, max=1, legend=string.format('Right camera, FPS: %g', 1/sys.toc()), zoom=4}
-   win3 = image.display{win=win3,image={normalisation(iCameraR)}, legend=string.format('Right camera SCN, FPS: %g', 1/sys.toc()), zoom=4}
+   -- win1 = image.display{win=win1,image={iCameraR,iCameraL}, min=0, max=1, legend=string.format('Right camera, FPS: %g', 1/sys.toc()), zoom=4}
+   -- win3 = image.display{win=win3,image={iCameraRNorm,iCameraLNorm}, legend=string.format('Right camera SCN, FPS: %g', 1/sys.toc()), zoom=4}
+   win4 = image.display{win=win4,image=dispMap,zoom=20,min=0,max=16,legend='Disparity map'}
    -- win = image.display{win=win,image={iCameraR,iCameraL}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
    -- win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
    -- image.savePNG(string.format("%s/frame_1_%05d.png",dir,f),a1)
