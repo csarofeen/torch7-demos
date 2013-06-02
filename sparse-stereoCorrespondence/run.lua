@@ -9,6 +9,7 @@ require 'camera'
 require 'nnx'
 require 'edgeDetector'
 require 'pl'
+require 'eex'
 
 -- Parsing the command line ----------------------------------------------------
 print '==> Processing options'
@@ -17,6 +18,7 @@ opt = lapp [[
 --kSize                 (default 5)       Edge kernel size {3,5}
 --showInterestPoints                      Show interest points
 --SCN                   (default 7)       Spatial Contrastive Normalisation filter size
+--imgFileName           (default none)    Specify the <name> of the sample images <name{R,L}.ext>
 ]]
 
 -- Parameters ------------------------------------------------------------------
@@ -39,8 +41,10 @@ conv.bias = torch.zero(conv.bias) -- zeros the bias
 
 -- iCameraX[c]: {i}mage from {Camera} {X} [{c}olour version; greyscale otherwise]
 ---------------------------------------------------------------------------------
-camera1 = image.Camera{idx=1,width=width,height=height,fps=fps}
-camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
+if opt.imgFileName == 'none' then
+   camera1 = image.Camera{idx=1,width=width,height=height,fps=fps}
+   camera2 = image.Camera{idx=2,width=width,height=height,fps=fps}
+end
 ---------------------------------------------------------------------------------
 
 -- Some reference code ----------------------------------------------------------
@@ -59,8 +63,14 @@ minEdge = math.huge]]
 
 while true do
    sys.tic()
-   iCameraR = image.rgb2y(camera1:forward())
-   iCameraL = image.rgb2y(camera2:forward())
+   if opt.imgFileName == 'none' then
+      iCameraR = image.rgb2y(camera1:forward())
+      iCameraL = image.rgb2y(camera2:forward())
+   else
+      imgList = eex.ls('testImages/' .. opt.imgFileName .. '*')
+      iCameraR = image.load(imgList[2])
+      iCameraL = image.load(imgList[1])
+   end
    -- edgesR = image.scale(edgeDetector(iCameraL,opt.kSize),width,height)[1]
    edgesL = image.scale(edgeDetector(iCameraR,opt.kSize),width,height)[1]
    iCameraRNorm = normalisation(iCameraR):clone()
@@ -129,7 +139,9 @@ while true do
    win4 = image.display{win=win4,image=dispMap,zoom=20,min=0,max=16,legend='Disparity map'}
    -- win = image.display{win=win,image={iCameraR,iCameraL}, legend="FPS: ".. 1/sys.toc(), min=0, max=1,nrow=2}
    -- win2 = image.display{win=win2,image={edgesL,edgesR}, legend="FPS: ".. 1/sys.toc(), min = -12, max = 12,  zoom=4}
-   -- image.savePNG(string.format("%s/frame_1_%05d.png",dir,f),a1)
+   -- image.savePNG(string.format("iCAmeraL.png"),iCameraL)
+   -- image.savePNG(string.format("iCAmeraR.png"),iCameraR)
+   -- if f == 100 then break end
    -- if f == 100 then
    --    f = 1
    --    io.write('Threashold bgTh: ')
@@ -137,4 +149,5 @@ while true do
    -- end
    -- f = f + 1
    -- print("FPS: ".. 1/sys.toc()) 
+   if opt.imgFileName ~= 'none' then break end
 end
