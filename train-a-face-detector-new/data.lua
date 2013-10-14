@@ -31,21 +31,65 @@ print '==> downloading dataset'
 
 local www = 'http://data.neuflow.org/data/'
 
-local train_file = '../datasets/faces_cut_yuv_32x32'
+local train_dir = '../../datasets/faces_cut_yuv_32x32/'
+local tar = 'faces_cut_yuv_32x32.tar.gz'
 
 -- file from: http://data.neuflow.org/data/faces_cut_yuv_32x32.tar.gz
-if not sys.dirp(opt.dataset) then
-   local path = sys.dirname(opt.dataset)
-   local tar = sys.basename(opt.www)
-   os.execute('mkdir -p ' .. path .. '; '..
-              'cd ' .. path .. '; '..
-              'wget ' .. opt.www .. '; '..
-              'tar xvf ' .. tar)
+if not paths.dirp(train_dir) then
+   os.execute('mkdir -p ' .. train_dir)
+   os.execute('cd ' .. train_dir)
+   os.execute('wget ' .. www .. tar)
+   os.execute('tar xvf ' .. tar)
 end
 
+opt = {}
+opt.patches='all'
 if opt.patches ~= 'all' then
    opt.patches = math.floor(opt.patches/3)
 end
+
+
+
+-- Faces:
+dataFace = nn.DataSet{dataSetFolder=train_dir..'face', 
+                      cacheFile=train_dir..'face',
+                      nbSamplesRequired=opt.patches,
+                      channels=1}
+dataFace:shuffle()
+
+-- Backgrounds:
+dataBG = nn.DataSet{dataSetFolder=train_dir..'bg',
+                    cacheFile=train_dir..'bg',
+                    nbSamplesRequired=opt.patches,
+                    channels=1}
+dataBGext = nn.DataSet{dataSetFolder=train_dir..'bg-false-pos-interior-scene',
+                       cacheFile=train_dir..'bg-false-pos-interior-scene',
+                       nbSamplesRequired=opt.patches,
+                       channels=1}
+dataBG:appendDataSet(dataBGext)
+dataBG:shuffle()
+
+-- pop subset for testing
+testFace = dataFace:popSubset{ratio=opt.ratio}
+testBg = dataBG:popSubset{ratio=opt.ratio}
+
+-- training set
+trainData = nn.DataList()
+trainData:appendDataSet(dataFace,'Faces')
+trainData:appendDataSet(dataBG,'Background')
+
+-- testing set
+testData = nn.DataList()
+testData:appendDataSet(testFace,'Faces')
+testData:appendDataSet(testBg,'Background')
+
+-- display
+if opt.visualize then
+   trainData:display(100,'trainData')
+   testData:display(100,'testData')
+end
+
+
 
 ----------------------------------------------------------------------
 -- training/test size
