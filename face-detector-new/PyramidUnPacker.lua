@@ -91,8 +91,6 @@ function PyramidUnPacker:forward(input, coordinates)
       local width = math.floor((self.coordinates[i][5] - self.ker_width)/self.step_width) + 1
       local height = math.floor((self.coordinates[i][6] - self.ker_height)/self.step_height) + 1
 
-      print(input:size(), start_x, width)
-
       local temp = input:narrow(3, start_x, width)
       temp = temp:narrow(2, start_y, height)
       table.insert(self.out_tbl, temp) 

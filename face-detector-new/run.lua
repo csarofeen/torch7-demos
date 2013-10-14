@@ -75,18 +75,23 @@ parse = inline.load [[
 -- load pre-trained network from disk
 --network = nn.Sequential()
 network = torch.load(opt.network):float()
+network.modules[11] = nil
 
--- n2 = nn.Sequential()
--- n2:add(nn.SpatialConvolution(1,8,5,5))
--- n2.modules[1].weight = network.modules[1].weight
--- n2.modules[2] = network.modules[2]:clone()
--- n2.modules[3] = network.modules[3]:clone()
+classifier1 = nn.Sequential()
+classifier1:add(network.modules[7]):clone()
+classifier1:add(network.modules[8]):clone()
+classifier1:add(network.modules[9]):clone()
+classifier1:add(network.modules[10]):clone()
+network.modules[7] = nil
+network.modules[8] = nil
+network.modules[9] = nil
+network.modules[10] = nil
+classifier = nn.SpatialClassifier(classifier1)
+network.modules[7] = classifier
 
-
-network = n2
-network = torch.load(opt.network):float()
 network_fov = 32
 network_sub = 4
+
 
 -- setup camera
 camera = image.Camera(opt.camidx)
@@ -127,7 +132,6 @@ function process()
    multiscale = network:forward(pyramid)
 
    -- (5) unpack pyramid
-   print(multiscale, coordinates)
    distributions = unpacker:forward(multiscale, coordinates)
 
    -- (6) parse distributions to extract blob centroids
