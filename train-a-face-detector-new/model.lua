@@ -7,7 +7,7 @@
 require 'torch'   -- torch
 require 'image'   -- to visualize the dataset
 require 'nn'      -- provides all sorts of trainable modules/layers
-require 'Dropout' -- Hinton dropout technique
+--require 'Dropout' -- Hinton dropout technique
 
 if opt.type == 'cuda' then
    nn.SpatialConvolutionMM = nn.SpatialConvolution
@@ -30,7 +30,7 @@ local filtsize = 5
 local poolsize = 2
 
 -- dropout?
-local dropout = nn.Dropout(opt.dropout)
+--local dropout = nn.Dropout(opt.dropout)
 
 
 ----------------------------------------------------------------------
@@ -54,7 +54,7 @@ model:add(nn.Linear(nstates[2]*filtsize*filtsize, nstates[3]))
 model:add(nn.Threshold())
 
 -- stage 4: linear (classifier)
-model:add(dropout)
+--model:add(dropout)
 model:add(nn.Linear(nstates[3], noutputs))
 
 -- stage 5 : log probabilities

@@ -15,13 +15,13 @@ opt = lapp[[
    -w,--weightDecay        (default 1e-5)        L2 penalty on the weights
    -m,--momentum           (default 0.5)         momentum
    -d,--dropout            (default 0.5)         dropout amount
-   -q,--quantization       (default 2)         quantization of computational precision 8b=256, etc
    -b,--batchSize          (default 128)         batch size
    -t,--threads            (default 8)           number of threads
    -p,--type               (default float)       float or cuda
    -i,--devid              (default 1)           device ID (if using CUDA)
    -s,--size               (default small)       dataset: small or full or extra
    -o,--save               (default results)     save directory
+      --patches            (default all)         percentage of samples to use for testing'
 ]]
 
 -- nb of threads and fixed seed (for repeatable experiments)

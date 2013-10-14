@@ -14,15 +14,13 @@ require 'torch'   -- torch
 require 'image'   -- to visualize the dataset
 require 'nnx'      -- provides a normalization operator
 
--- for testing purposes:
--- opt = {}
--- opt.patches='all'
--- opt.visualize = true
-
 local opt = opt or {
    visualize = true,
-   size = 'small'
+   size = 'small',
+   patches='all'
 }
+
+print ('patches: ', opt.patches)
 
 ----------------------------------------------------------------------
 print '==> downloading dataset'
@@ -35,7 +33,6 @@ print '==> downloading dataset'
 -- files.
 
 local www = 'http://data.neuflow.org/data/'
-
 local train_dir = '../../datasets/faces_cut_yuv_32x32/'
 local tar = 'faces_cut_yuv_32x32.tar.gz'
 
@@ -47,14 +44,15 @@ if not paths.dirp(train_dir) then
    os.execute('tar xvf ' .. tar)
 end
 
-----------------------------------------------------------------------
-print '==> loading dataset'
-
--- We load the dataset from disk
 if opt.patches ~= 'all' then
    opt.patches = math.floor(opt.patches/3)
 end
 
+----------------------------------------------------------------------
+print '==> loading dataset'
+
+-- We load the dataset from disk
+torch.setdefaulttensortype('torch.DoubleTensor')
 
 -- Faces:
 dataFace = nn.DataSet{dataSetFolder=train_dir..'face', 
@@ -89,15 +87,15 @@ testData = nn.DataList()
 testData:appendDataSet(testFace,'Faces')
 testData:appendDataSet(testBg,'Background')
 
-----------------------------------------------------------------------
--- training/test size
 
-local trsize = trainData:size()
-local tesize = testData:size()
-
+torch.setdefaulttensortype('torch.FloatTensor')
 
 ----------------------------------------------------------------------
 -- convert to new format  and training scripts:
+
+-- training/test size
+local trsize = trainData:size()
+local tesize = testData:size()
 
 trainData2 = {
    data = torch.Tensor(trsize, 1, 32, 32),
@@ -112,15 +110,17 @@ testData2 = {
    }
 
 for i=1,trsize do
-   trainData2.data[i] = trainData[i][1]
+   trainData2.data[i] = trainData[i][1]:clone()
    trainData2.labels[i] = trainData[i][2][1]
 end
 for i=1,tesize do
-   testData2.data[i] = testData[i][1]
+   testData2.data[i] = testData[i][1]:clone()
    trainData2.labels[i] = testData[i][2][1]
 end
 
 -- relocate pointers:
+trainData = nil
+testData = nil
 trainData = trainData2
 testData = testData2
 
