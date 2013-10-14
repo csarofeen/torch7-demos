@@ -1,7 +1,9 @@
 ----------------------------------------------------------------------
--- Train a ConvNet on SVHN.
+-- Train a ConvNet on faces.
 --
--- Clement Farabet
+-- original: Clement Farabet
+-- new version by: E. Culurciello 
+-- Mon Oct 14 14:58:50 EDT 2013
 ----------------------------------------------------------------------
 
 require 'pl'

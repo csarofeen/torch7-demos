@@ -28,7 +28,7 @@ local loss = t.loss
 print '==> defining some tools'
 
 -- classes
-local classes = {'1','0'} -- faces: yes, no
+local classes = {'face','backg'} -- faces: yes, no
 
 -- This matrix records the current confusion across classes
 local confusion = optim.ConfusionMatrix(classes)
@@ -146,7 +146,7 @@ local function train(trainData)
    local filename = paths.concat(opt.save, 'model.net')
    os.execute('mkdir -p ' .. sys.dirname(filename))
    print('==> saving model to '..filename)
-   -- torch.save(filename, model)
+   torch.save(filename, model)
 
    -- next epoch
    confusion:zero()

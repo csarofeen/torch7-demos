@@ -8,6 +8,7 @@
 -- can use to analyze/visualize the data you've just loaded.
 --
 -- Clement Farabet, Eugenio Culurciello
+-- Mon Oct 14 14:58:50 EDT 2013
 ----------------------------------------------------------------------
 
 require 'torch'   -- torch
@@ -19,8 +20,6 @@ local opt = opt or {
    size = 'small',
    patches='all'
 }
-
-print ('patches: ', opt.patches)
 
 ----------------------------------------------------------------------
 print '==> downloading dataset'
@@ -111,11 +110,19 @@ testData2 = {
 
 for i=1,trsize do
    trainData2.data[i] = trainData[i][1]:clone()
-   trainData2.labels[i] = trainData[i][2][1]
+   if trainData[i][2][1] == 1 then
+      trainData2.labels[i] = torch.Tensor({1})
+    else 
+      trainData2.labels[i] = torch.Tensor({2})
+    end
 end
 for i=1,tesize do
    testData2.data[i] = testData[i][1]:clone()
-   trainData2.labels[i] = testData[i][2][1]
+  if testData[i][2][1] == 1 then
+      testData2.labels[i] = torch.Tensor({1})
+   else
+      testData2.labels[i] = torch.Tensor({2})
+   end
 end
 
 -- relocate pointers:
@@ -123,7 +130,6 @@ trainData = nil
 testData = nil
 trainData = trainData2
 testData = testData2
-
 
 ----------------------------------------------------------------------
 print '==> preprocessing data'
@@ -134,8 +140,8 @@ print '==> preprocessing data'
 -- where Type=='Float','Double','Byte','Int',... Shortcuts are provided
 -- for simplicity (float(),double(),cuda(),...):
 
-trainData.data = trainData.data:float()
-testData.data = testData.data:float()
+-- trainData.data = trainData.data:float()
+-- testData.data = testData.data:float()
 
 -- We now preprocess the data. Preprocessing is crucial
 -- when applying pretty much any kind of machine learning algorithm.

@@ -16,11 +16,11 @@ end
 ----------------------------------------------------------------------
 print '==> define parameters'
 
--- 10-class problem
-local noutputs = 10
+-- 2-class problem: faces!
+local noutputs = 2
 
--- input dimensions
-local nfeats = 3
+-- input dimensions: faces!
+local nfeats = 1
 local width = 32
 local height = 32
 
@@ -83,6 +83,6 @@ end
 return {
    model = model,
    loss = loss,
-   dropout = dropout
+   --dropout = dropout
 }
 
