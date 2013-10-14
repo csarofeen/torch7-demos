@@ -12,7 +12,12 @@
 
 require 'torch'   -- torch
 require 'image'   -- to visualize the dataset
-require 'nn'      -- provides a normalization operator
+require 'nnx'      -- provides a normalization operator
+
+-- for testing purposes:
+-- opt = {}
+-- opt.patches='all'
+-- opt.visualize = true
 
 local opt = opt or {
    visualize = true,
@@ -42,12 +47,13 @@ if not paths.dirp(train_dir) then
    os.execute('tar xvf ' .. tar)
 end
 
-opt = {}
-opt.patches='all'
+----------------------------------------------------------------------
+print '==> loading dataset'
+
+-- We load the dataset from disk
 if opt.patches ~= 'all' then
    opt.patches = math.floor(opt.patches/3)
 end
-
 
 
 -- Faces:
@@ -83,80 +89,41 @@ testData = nn.DataList()
 testData:appendDataSet(testFace,'Faces')
 testData:appendDataSet(testBg,'Background')
 
--- display
-if opt.visualize then
-   trainData:display(100,'trainData')
-   testData:display(100,'testData')
-end
-
-
-
 ----------------------------------------------------------------------
 -- training/test size
 
-local trsize,tesize
-if opt.size == 'extra' then
-   print '==> using extra training data'
-   trsize = 73257 + 531131
-   tesize = 26032
-elseif opt.size == 'full' then
-   print '==> using regular, full training data'
-   trsize = 73257
-   tesize = 26032
-elseif opt.size == 'small' then
-   print '==> using reduced training data, for fast experiments'
-   trsize = 10000
-   tesize = 2000
-end
+local trsize = trainData:size()
+local tesize = testData:size()
+
 
 ----------------------------------------------------------------------
-print '==> loading dataset'
+-- convert to new format  and training scripts:
 
--- We load the dataset from disk, and re-arrange it to be compatible
--- with Torch's representation. Matlab uses a column-major representation,
--- Torch is row-major, so we just have to transpose the data.
-
--- Note: the data, in X, is 4-d: the 1st dim indexes the samples, the 2nd
--- dim indexes the color channels (RGB), and the last two dims index the
--- height and width of the samples.
-
-local loaded = torch.load(train_file,'ascii')
-local trainData = {
-   data = loaded.X:transpose(3,4),
-   labels = loaded.y[1],
+trainData2 = {
+   data = torch.Tensor(trsize, 1, 32, 32),
+   labels = torch.Tensor(trsize),
    size = function() return trsize end
 }
 
--- If extra data is used, we load the extra file, and then
--- concatenate the two training sets.
-
--- Torch's slicing syntax can be a little bit frightening. I've
--- provided a little tutorial on this, in this same directory:
--- A_slicing.lua
-
-if opt.size == 'extra' then
-   loaded = torch.load(extra_file,'ascii')
-   local trdata = torch.Tensor(trsize,3,32,32)
-   trdata[{ {1,(#trainData.data)[1]} }] = trainData.data
-   trdata[{ {(#trainData.data)[1]+1,-1} }] = loaded.X:transpose(3,4)
-   local trlabels = torch.Tensor(trsize)
-   trlabels[{ {1,(#trainData.labels)[1]} }] = trainData.labels
-   trlabels[{ {(#trainData.labels)[1]+1,-1} }] = loaded.y[1]
-   trainData = {
-      data = trdata,
-      labels = trlabels,
-      size = function() return trsize end
+testData2 = {
+      data = torch.Tensor(tesize, 1, 32, 32),
+      labels = torch.Tensor(tesize),
+      size = function() return tesize end
    }
+
+for i=1,trsize do
+   trainData2.data[i] = trainData[i][1]
+   trainData2.labels[i] = trainData[i][2][1]
+end
+for i=1,tesize do
+   testData2.data[i] = testData[i][1]
+   trainData2.labels[i] = testData[i][2][1]
 end
 
--- Finally we load the test data.
+-- relocate pointers:
+trainData = trainData2
+testData = testData2
 
-local loaded = torch.load(test_file,'ascii')
-local testData = {
-   data = loaded.X:transpose(3,4),
-   labels = loaded.y[1],
-   size = function() return tesize end
-}
 
 ----------------------------------------------------------------------
 print '==> preprocessing data'
@@ -184,16 +151,16 @@ testData.data = testData.data:float()
 --     as a result, each color component has 0-mean and 1-norm across the dataset.
 
 -- Convert all images to YUV
-print '==> preprocessing data: colorspace RGB -> YUV'
-for i = 1,trainData:size() do
-   trainData.data[i] = image.rgb2yuv(trainData.data[i])
-end
-for i = 1,testData:size() do
-   testData.data[i] = image.rgb2yuv(testData.data[i])
-end
+-- print '==> preprocessing data: colorspace RGB -> YUV'
+-- for i = 1,trainData:size() do
+--    trainData.data[i] = image.rgb2yuv(trainData.data[i])
+-- end
+-- for i = 1,testData:size() do
+--    testData.data[i] = image.rgb2yuv(testData.data[i])
+-- end
 
 -- Name channels for convenience
-local channels = {'y','u','v'}
+local channels = {'y'}--,'u','v'}
 
 -- Normalize each channel, and store mean/std
 -- per channel. These values are important, as they are part of
@@ -265,11 +232,7 @@ print '==> visualizing data'
 
 if opt.visualize then
    local first256Samples_y = trainData.data[{ {1,256},1 }]
-   local first256Samples_u = trainData.data[{ {1,256},2 }]
-   local first256Samples_v = trainData.data[{ {1,256},3 }]
    image.display{image=first256Samples_y, nrow=16, legend='Some training examples: Y channel'}
-   image.display{image=first256Samples_u, nrow=16, legend='Some training examples: U channel'}
-   image.display{image=first256Samples_v, nrow=16, legend='Some training examples: V channel'}
 end
 
 -- Exports
