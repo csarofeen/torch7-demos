@@ -16,7 +16,7 @@ require 'imgraph' -- to colorize outputs
 require 'segmtools' -- to display name of classes
 require 'nnx'
 require 'image'
---require 'camera'
+
 
 ----------------------------------------------------------------------
 print '==> processing options'
@@ -24,8 +24,8 @@ print '==> processing options'
 opt = lapp[[
   -t,   --threads       (default 3)          number of threads
   -v,   --video         (default '')         video (or image) file to process
-  -n,   --network       (default 'multinet-float-ascii.net') path to trained network
-  		  --networktype   (default 'cnn')      type of network ('cnn' or 'unsup')
+  -n,   --network       (default 'multinet-float.net') path to trained network
+  		--networktype   (default 'cnn')      type of network ('cnn' or 'unsup')
   -s,   --save          (default '')         path to save output video
   -l,   --useffmpeglib  (default false)      help=use ffmpeglib module to read frames directly from video
   -k,   --seek          (default 0)          seek number of seconds
@@ -69,7 +69,7 @@ function init_cnn_net()
 
 	-- load pre-trained network and other data from disk
 	print(opt.network)
-	local netin = torch.load(opt.network, "ascii")
+	local netin = torch.load(opt.network)
 
 	-- replace classifier (2nd module) by SpatialClassifier
 	local network = netin.modules[1]
@@ -82,7 +82,7 @@ function init_cnn_net()
 	network.modules[1].weight = m1.weight:reshape(16,3,7,7)
 	network.modules[1].bias = m1.bias
 	m1 = network.modules[4]:clone()
-	network.modules[4] = nn.SpatialConvolution(16,64,7,7)
+	network.modules[4] = nn.SpatialConvolution(16,64,5,5)
 	network.modules[4].weight = m1.weight:reshape(64,16,5,5)
 	network.modules[4].bias = m1.bias
 	m1 = network.modules[7]:clone()
@@ -167,7 +167,7 @@ end
 
 function get_unsup_features(alg_data, frame)
 
-	features = alg_data.u1net:forward(frame)
+   features = alg_data.u1net:forward(frame)
    return features
 
 end
@@ -274,17 +274,6 @@ end
 --   ffclasses[{{3},{1,20},{x,x+dx}}]:fill(colours[i][3])
 -- end
 
-local hwt = 0
-
--- process and time in SW on CPU:
-cput = 0
-for i = 1, 10 do
-	sys.tic() --test on HW
-	features = get_features(alg_data, img_temp)
-	cput = cput + sys.toc()
-end
-cput = cput / 10
-print('CPU frame precessing time [ms]: ', cput*1000)
 
 
 -- process function
@@ -293,6 +282,7 @@ function process()
    if opt.video ~= '' then
       fframe = video:forward()
    else
+      require 'camera'
       fframe = camera:forward()
    end
 
@@ -361,18 +351,9 @@ function display()
    end
 
    -- display profile data:
-   local speedup = cput/hwt
-   str1 = string.format('CPU compute time [ms]: %f',  cput*1000)
-   str2 = string.format('HW config+compute time [ms]: %f', hwt*1000)
-   str3 = string.format('speedup = %f ',  speedup)
    win:setfont(qt.QFont{serif=false,italic=false,size=12})
    -- disp line:
-   win:moveto(10, opt.height*opt.zoom*2 + 35);
-   win:show(str1)
-   win:moveto(10, opt.height*opt.zoom*2 + 55);
-   win:show(str2)
-   win:moveto(10, opt.height*opt.zoom*2 + 75);
-   win:show(str3)
+
    
    -- save ?
    if opt.save ~= '' then
