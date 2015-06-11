@@ -15,7 +15,6 @@ require 'qtuiloader'
 require 'camera'
 require 'image'
 require 'nnx'
-require 'torchffi'
 
 print '==> processing options'
 

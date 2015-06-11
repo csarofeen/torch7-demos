@@ -182,7 +182,5 @@ classes = {'person','backg'}
 return {
    trainData = trainData,
    testData = testData,
-   mean = mean,
-   std = std,
    classes = classes
 }

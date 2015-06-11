@@ -36,8 +36,8 @@ local CNN = nn.Sequential()
 
 -- stage 1: conv+max
 CNN:add(nn.SpatialConvolutionMM(nfeats, nstates[1], filtsize[1], filtsize[1]))
-CNN:add(nn.Threshold())
 CNN:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
+CNN:add(nn.Threshold())
 
 -- stage 2: conv+max
 CNN:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize[2], filtsize[2]))
