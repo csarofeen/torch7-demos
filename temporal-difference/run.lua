@@ -124,24 +124,22 @@ end
 
 -- create main functions
 local main = function()
-   status, err = pcall(function()
-      while display.continue() do
-         timer:reset()
+   while display.continue() do
+      timer:reset()
 
-         src = frame.forward(src)
-         if not src then
-            break
-         end
-
-         local img = process.forward(src)
-         
-         display.forward(result, img, (1/t_loop))
-
-         t_loop = timer:time().real
-
-         collectgarbage()
+      src = frame.forward(src)
+      if not src then
+         break
       end
-   end)
+
+      local img = process.forward(src)
+      
+      display.forward(result, img, (1/t_loop))
+
+      t_loop = timer:time().real
+
+      collectgarbage()
+   end
    if status then
       print('process done!')
    else
