@@ -80,7 +80,7 @@ network_fov = 32
 network_sub = 4
 
 
-print('Neural Network used: \n', network) -- print final network
+-- print('Neural Network used: \n', network) -- print final network
 
 -- setup camera
 local GUI
