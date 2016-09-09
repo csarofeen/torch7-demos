@@ -21,7 +21,7 @@ opt.seq_length = 4 -- RNN time steps
 print('Creating Input...')
 -- create a sequence of 2 numbers: {2, 1, 2, 2, 1, 1, 2, 2, 1 ..}
 local s = torch.ceil(torch.rand(opt.train_size):add(0.5))
--- print('Inputs sequence:', s)
+-- print('Inputs sequence:', s:view(1,-1))
 local y = torch.ones(1,opt.train_size)
 for i = 4, opt.train_size do -- if you find sequence ...1001... then output is class '2', otherwise is '1'
    if (s[{i-3}]==2 and s[{i-2}]==1 and s[{i-1}]==1 and s[{i}]==2) then y[{1,{i}}] = 2 end
@@ -53,8 +53,8 @@ end
 
 local params, grad_params 
 -- get flattened parameters tensor
-params, grad_params = model_utils.combine_all_parameters(protos.rnn)
--- params, grad_params = protos.rnn:getParameters()
+-- params, grad_params = model_utils.combine_all_parameters(protos.rnn)
+params, grad_params = protos.rnn:getParameters()
 print('Number of parameters in the model: ' .. params:nElement())
 -- print(params, grad_params)
 
@@ -64,14 +64,14 @@ local clones = {}
 clones.rnn = {}
 clones.criterion = {}
 for i = 1,opt.seq_length do
-   clones.rnn[i] = protos.rnn:clone('weight', 'gradWeights', 'bias')
+   clones.rnn[i] = protos.rnn:clone('weight', 'gradWeights', 'gradBias', 'bias')
    clones.criterion[i] = protos.criterion:clone()
 end
 -- for name, proto in pairs(protos) do
 --   print('cloning ' .. name)
---   clones.rnn = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
+--   clones[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
 -- end
--- print(clones)
+
 
 function clone_list(tensor_list, zero_too)
   -- takes a list of tensors and returns a list of cloned tensors
@@ -85,7 +85,7 @@ end
 
 -- training function:
 local init_state_global = clone_list(init_state)
-local bo = 0 -- batch counter
+local bo = 0 -- batch offset / counter
 opt.grad_clip = 5
 function feval(p)
   if p ~= params then
@@ -101,7 +101,7 @@ function feval(p)
   local loss = 0
   for t = 1, opt.seq_length do
     clones.rnn[t]:training() -- make sure we are in correct training mode
-    local  lst = clones.rnn[t]:forward{x[{{},{t+bo}}]:t(), unpack(rnn_state[t-1])}
+    local lst = clones.rnn[t]:forward{x[{{},{t+bo}}]:t(), unpack(rnn_state[t-1])}
     rnn_state[t] = {}
     for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
     predictions[t] = lst[#lst]
@@ -135,7 +135,7 @@ function feval(p)
   grad_params:clamp(-opt.grad_clip, opt.grad_clip)
   -- print(params,grad_params)
   -- point to next batch:
-  bo = bo + 1
+  bo = bo + opt.seq_length
   return loss, grad_params
 end
 
@@ -146,14 +146,14 @@ opt.decay_rate = 0.95
 print('Training...')
 local losses = {}
 local optim_state = {learningRate = opt.learning_rate, alpha = opt.decay_rate}
-local iterations = opt.train_size - opt.seq_length + 1
+local iterations = opt.train_size/opt.seq_length
 for i = 1, iterations do
-    local _, loss = optim.rmsprop(feval, params, optim_state)
-    losses[#losses + 1] = loss[1]
+  local _, loss = optim.rmsprop(feval, params, optim_state)
+  losses[#losses + 1] = loss[1]
 
-    if i % (opt.train_size/10) == 0 then
-        print(string.format("Iteration %8d, loss = %4.4f, loss/seq_len = %4.4f, gradnorm = %4.4e", i, loss[1], loss[1] / opt.seq_length, grad_params:norm()))
-    end
+  if i % (iterations/10) == 0 then
+    print(string.format("Iteration %8d, loss = %4.4f, loss/seq_len = %4.4f, gradnorm = %4.4e", i, loss[1], loss[1] / opt.seq_length, grad_params:norm()))
+  end
 end
 
 
@@ -172,18 +172,19 @@ function test()
     rnn_state[t] = {}
     for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
     predictions[t] = lst[#lst]
-    loss = loss + clones.criterion[t]:forward(predictions[t], y[{1,{t+bo}}])
   end
   -- carry over lstm state
   rnn_state[0] = rnn_state[#rnn_state]
   -- print results:
-  print('Prediction:', predictions[opt.seq_length][{{1},{1}}][1][1], 'Label:', y[{1,{opt.seq_length+bo}}][1])
+  local max, idx
+  max,idx = torch.max( predictions[opt.seq_length], 2)
+  print('Prediction:', idx[1][1], 'Label:', y[{1,{opt.seq_length+bo}}][1])
   -- point to next batch:
-  bo = bo + 1
+  bo = bo + opt.seq_length
 end
 
 -- and test!
-opt.test_samples = 10
+opt.test_samples = 20
 for i = 1, opt.test_samples do
   test()
 end
