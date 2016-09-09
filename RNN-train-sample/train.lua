@@ -5,7 +5,7 @@
 require 'nn'
 require 'nngraph'
 require 'optim'
-require 'RNN' -- https://raw.githubusercontent.com/karpathy/char-rnn/maseq_lengther/model/RNN.lua
+require 'RNN' -- https://raw.githubusercontent.com/karpathy/char-rnn/master/model/RNN.lua
 -- local c = require 'trepl.colorize'
 
 torch.setdefaulttensortype('torch.FloatTensor')
@@ -36,7 +36,7 @@ local rnn_size = 1
 local rnn_layers = 1
 local batch_size = 1
 local RNNmodel = RNN(dictionary_size, rnn_size, rnn_layers, 0) -- input = 2 (classes), 1 layer, rnn_size=1, no dropout 
--- print('Teseq_length of RNN output:', RNNmodel:forward{ torch.Tensor(2), torch.Tensor(1) })
+-- print('Test of RNN output:', RNNmodel:forward{ torch.Tensor(2), torch.Tensor(1) })
 
 local params, grad_params 
 params, grad_params = RNNmodel:getParameters()
@@ -60,7 +60,7 @@ for i=1,nT do
 end
 
 function clone_list(tensor_list, zero_too)
-  -- takes a liseq_length of tensors and returns a liseq_length of cloned tensors
+  -- takes a list of tensors and returns a list of cloned tensors
   local out = {}
   for k,v in pairs(tensor_list) do
       out[k] = v:clone()
@@ -80,7 +80,7 @@ function feval(p)
   grad_params:zero()
 
   local predictions = {}
-  local rnn_state = {[0]=init_state_global} -- initial seq_lengthate
+  local rnn_state = {[0]=init_state_global} -- initial state
   local loss = 0
 
   -- forward pass ---------------------------------------------------------------
@@ -89,7 +89,7 @@ function feval(p)
     clones.rnn[t]:training() -- make sure we are in correct training mode
     local  lst = clones.rnn[t]:forward{x[{{},{t+bo}}]:t(), unpack(rnn_state[t-1])}
     rnn_state[t] = {}
-    for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the seq_lengthate, without output
+    for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
     predictions[t] = lst[#lst]
     loss = loss + clones.criterion[t]:forward(predictions[t], y[{1,{t+bo}}])
   end
@@ -99,7 +99,7 @@ function feval(p)
   -- initialize gradient at time t to be zeros (there's no influence from future)
   local drnn_state = {[nT] = clone_list(init_state, true)} -- true also zeros the clones
   for t=nT,1,-1 do
-    -- print(drnn_seq_lengthate)
+    -- print(drnn_state)
     -- backprop through loss, and softmax/linear
     -- print(predictions[t], y[{1,{t+bo}}])
     local doutput_t = clones.criterion[t]:backward(predictions[t], y[{1,{t+bo}}])
@@ -110,12 +110,12 @@ function feval(p)
     for k,v in pairs(dlst) do
       if k > 1 then -- k == 1 is gradient on x, which we dont need
         -- note we do k-1 because first item is dembeddings, and then follow the 
-        -- derivatives of the state, seq_lengtharting at index 2. I know...
+        -- derivatives of the state, starting at index 2. I know...
         drnn_state[t-1][k-1] = v
       end
     end
   end
-  -- transfer final state to initial seq_lengthate (BPTT)
+  -- transfer final state to initial state (BPTT)
   init_state_global = rnn_state[#rnn_state]
 
   -- create next batch:
