@@ -20,7 +20,7 @@ opt.seq_length = 4 -- RNN time steps
 
 print('Creating Input...')
 -- create a sequence of 2 numbers: {2, 1, 2, 2, 1, 1, 2, 2, 1 ..}
-local s = torch.ceil(torch.rand(opt.train_size):add(0.5))
+local s = torch.Tensor(opt.train_size):random(2)
 -- print('Inputs sequence:', s:view(1,-1))
 local y = torch.ones(1,opt.train_size)
 for i = 4, opt.train_size do -- if you find sequence ...1001... then output is class '2', otherwise is '1'
@@ -163,7 +163,7 @@ function test()
   -- bo variable creates batches on the fly
   
   -- forward pass ---------------------------------------------------------------
-  local rnn_state = {[0]=init_state_global} -- initial state
+  local rnn_state = {[0]=init_state} -- initial state
   local predictions = {}
   local loss = 0
   for t = 1, opt.seq_length do
@@ -178,6 +178,7 @@ function test()
   -- print results:
   local max, idx
   max,idx = torch.max( predictions[opt.seq_length], 2)
+  print()
   print('Prediction:', idx[1][1], 'Label:', y[{1,{opt.seq_length+bo}}][1])
   -- point to next batch:
   bo = bo + opt.seq_length
