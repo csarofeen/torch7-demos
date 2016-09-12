@@ -12,9 +12,9 @@ require 'rnn'
 -- SET UP MODEL: --------------------------------------------------------------
 
 -- model hyper-parameters 
-batchSize = 8
+batchSize = 1
 rho = 4 -- sequence length
-hiddenSize = 100
+hiddenSize = 10
 nIndex = 2 -- input words
 nClass = 2 -- output classes
 lr = 0.1
@@ -80,7 +80,7 @@ end
 
 -- testing:
 for iteration = 1, 10 do
-   -- 1. create a sequence of rho time-steps
+  print('\n\n\n ITERATION:', iteration)
    indices:random(1,ds.size) -- choose some random samples
    inputs:index(ds.input, 1,indices)
    targets:index(ds.target, 1,indices)
@@ -88,7 +88,6 @@ for iteration = 1, 10 do
    local outputs = rnn:forward(inputs)
    max,idx = torch.max(outputs, 2)
    print('inputs:', inputs, 'targets:', targets, 'results:', idx)
-   
 end
 
 
