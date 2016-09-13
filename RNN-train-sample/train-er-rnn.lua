@@ -12,7 +12,7 @@ require 'rnn'
 -- SET UP MODEL: --------------------------------------------------------------
 
 -- model hyper-parameters 
-batchSize = 1
+batchSize = 10
 rho = 4 -- sequence length
 hiddenSize = 10
 nIndex = 2 -- input words
@@ -80,7 +80,7 @@ end
 
 -- testing:
 for iteration = 1, 10 do
-  print('\n\n\n ITERATION:', iteration)
+  print('\n\nTESTING, iteration:', iteration)
    indices:random(1,ds.size) -- choose some random samples
    inputs:index(ds.input, 1,indices)
    targets:index(ds.target, 1,indices)
