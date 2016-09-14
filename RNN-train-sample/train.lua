@@ -6,7 +6,7 @@
 require 'nn'
 require 'nngraph'
 require 'optim'
-require 'RNN'
+dofile('RNN.lua')
 -- local c = require 'trepl.colorize'
 local model_utils = require 'model_utils'
 
@@ -15,7 +15,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 local opt = {}
 opt.dictionary_size = 2 -- sequence of 2 symbols
-opt.train_size = 1000 -- train data size
+opt.train_size = 10000 -- train data size
 opt.seq_length = 4 -- RNN time steps
 
 print('Creating Input...')
@@ -35,7 +35,7 @@ end
 
 -- model:
 print('Creating Model...')
-opt.rnn_size = 1
+opt.rnn_size = 10
 opt.rnn_layers = 1
 opt.batch_size = 1
 
