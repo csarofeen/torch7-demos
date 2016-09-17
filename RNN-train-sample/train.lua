@@ -14,16 +14,17 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 local opt = {}
 opt.dictionary_size = 2 -- sequence of 2 symbols
-opt.train_size = 100000 -- train data size
+opt.train_size = 10000 -- train data size
 opt.seq_length = 4 -- RNN time steps
 
 print('Creating Input...')
 -- create a sequence of 2 numbers: {2, 1, 2, 2, 1, 1, 2, 2, 1 ..}
 local s = torch.Tensor(opt.train_size):random(2)
--- print('Inputs sequence:', s:view(1,-1))
+print('Inputs sequence:', s:view(1,-1))
 local y = torch.ones(1, opt.train_size)
 for i = 4, opt.train_size do -- if you find sequence ...1001... then output is class '2', otherwise is '1'
    if (s[{i-3}]==1 and s[{i-2}]==2 and s[{i-1}]==2 and s[{i}]==1) then y[{1,{i}}] = 2 end
+   -- if (s[{i-1}]==1 and s[{i}]==2) then y[{1,{i}}] = 2 end -- detect one 1-2 sequence
 end
 print('Desired sequence:', y)
 local x = torch.zeros(2, opt.train_size) -- create input with 1-hot encoding:
@@ -62,14 +63,10 @@ print('Cloning RNN model:')
 local clones = {}
 clones.rnn = {}
 clones.criterion = {}
-for i = 1,opt.seq_length do
-   clones.rnn[i] = protos.rnn:clone('weight', 'gradWeights', 'gradBias', 'bias')
-   clones.criterion[i] = protos.criterion:clone()
+for name, proto in pairs(protos) do
+  print('cloning ' .. name)
+  clones[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
 end
--- for name, proto in pairs(protos) do
---   print('cloning ' .. name)
---   clones[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
--- end
 
 
 function clone_list(tensor_list, zero_too)
@@ -114,7 +111,7 @@ function feval(p)
   for t = opt.seq_length, 1, -1 do
     -- print(drnn_state)
     -- backprop through loss, and softmax/linear
-    -- print(predictions[t], y[{1,{t+bo}}])
+    -- print( 'prediction,target:', predictions[t], y[{1,{t+bo}}] )
     local doutput_t = clones.criterion[t]:backward(predictions[t], y[{1,{t+bo}}])
     -- print('douptut', doutput_t)
     table.insert(drnn_state[t], doutput_t)
@@ -174,17 +171,18 @@ function test()
     predictions[t] = lst[#lst]
   end
   -- carry over lstm state
-  rnn_state[0] = rnn_state[#rnn_state]
+  rnn_state[0] = init_state -- here we want to test all steps
+  -- print(predictions[opt.seq_length])
   -- print results:
   local max, idx
   max,idx = torch.max( predictions[opt.seq_length], 2)
   print('Prediction:', idx[1][1], 'Label:', y[{1,{opt.seq_length+bo}}][1])
   -- point to next batch:
-  bo = bo + opt.seq_length
+  bo = bo + 1 -- here we want to test all steps
 end
 
 -- and test!
-opt.test_samples = 30
+opt.test_samples = 50
 for i = 1, opt.test_samples do
   test()
 end
