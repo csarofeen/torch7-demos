@@ -1,13 +1,12 @@
 -- Eugenio Culurciello
 -- September 2016
--- RNN training test: ABBA sequence detector
+-- RNN training test: ABBA / 1221 sequence detector
 -- based on: https://raw.githubusercontent.com/karpathy/char-rnn/master/model/RNN.lua
 
 require 'nn'
 require 'nngraph'
 require 'optim'
 dofile('RNN.lua')
--- local c = require 'trepl.colorize'
 local model_utils = require 'model_utils'
 
 torch.setdefaulttensortype('torch.FloatTensor')
@@ -15,23 +14,23 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 local opt = {}
 opt.dictionary_size = 2 -- sequence of 2 symbols
-opt.train_size = 10000 -- train data size
+opt.train_size = 100000 -- train data size
 opt.seq_length = 4 -- RNN time steps
 
 print('Creating Input...')
 -- create a sequence of 2 numbers: {2, 1, 2, 2, 1, 1, 2, 2, 1 ..}
 local s = torch.Tensor(opt.train_size):random(2)
 -- print('Inputs sequence:', s:view(1,-1))
-local y = torch.ones(1,opt.train_size)
+local y = torch.ones(1, opt.train_size)
 for i = 4, opt.train_size do -- if you find sequence ...1001... then output is class '2', otherwise is '1'
-   if (s[{i-3}]==2 and s[{i-2}]==1 and s[{i-1}]==1 and s[{i}]==2) then y[{1,{i}}] = 2 end
+   if (s[{i-3}]==1 and s[{i-2}]==2 and s[{i-1}]==2 and s[{i}]==1) then y[{1,{i}}] = 2 end
 end
--- print('Desired output sequence:', y)
+print('Desired sequence:', y)
 local x = torch.zeros(2, opt.train_size) -- create input with 1-hot encoding:
 for i = 1, opt.train_size do
-   if y[{1,{i}}] == 2 then x[{{},{i}}] = torch.ones(2) end
+  if y[{{},{i}}][1][1] > 1 then x[{{},{i}}] = torch.Tensor{0,1} else x[{{},{i}}] = torch.Tensor{1,0} end
 end
--- print('Input vector:', x)
+print('Input vector:', x)
 
 -- model:
 print('Creating Model...')
@@ -101,6 +100,7 @@ function feval(p)
   local loss = 0
   for t = 1, opt.seq_length do
     clones.rnn[t]:training() -- make sure we are in correct training mode
+    -- print( 'sample,target:', x[{{},{t+bo}}], y[{1,{t+bo}}] )
     local lst = clones.rnn[t]:forward{x[{{},{t+bo}}]:t(), unpack(rnn_state[t-1])}
     rnn_state[t] = {}
     for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
@@ -178,14 +178,13 @@ function test()
   -- print results:
   local max, idx
   max,idx = torch.max( predictions[opt.seq_length], 2)
-  print()
   print('Prediction:', idx[1][1], 'Label:', y[{1,{opt.seq_length+bo}}][1])
   -- point to next batch:
   bo = bo + opt.seq_length
 end
 
 -- and test!
-opt.test_samples = 20
+opt.test_samples = 30
 for i = 1, opt.test_samples do
   test()
 end
