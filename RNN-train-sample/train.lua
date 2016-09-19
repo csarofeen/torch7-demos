@@ -29,7 +29,7 @@ end
 print('Desired sequence:', y)
 local x = torch.zeros(2, opt.train_size) -- create input with 1-hot encoding:
 for i = 1, opt.train_size do
-  if y[{{},{i}}][1][1] > 1 then x[{{},{i}}] = torch.Tensor{0,1} else x[{{},{i}}] = torch.Tensor{1,0} end
+  if s[i] > 1 then x[{{},{i}}] = torch.Tensor{0,1} else x[{{},{i}}] = torch.Tensor{1,0} end
 end
 print('Input vector:', x)
 
