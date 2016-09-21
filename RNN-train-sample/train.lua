@@ -39,8 +39,8 @@ opt.rnn_size = 10
 opt.rnn_layers = 1
 opt.batch_size = 1
 
-local protos = {} 
-protos.rnn = RNN(opt.dictionary_size, opt.rnn_size, opt.rnn_layers, 0) -- input = 2 (classes), 1 layer, rnn_size=1, no dropout 
+local protos = {}
+protos.rnn = RNN(opt.dictionary_size, opt.rnn_size, opt.rnn_layers, 0) -- input = 2 (classes), 1 layer, rnn_size=1, no dropout
 protos.criterion = nn.ClassNLLCriterion()
 -- print('Test of RNN output:', RNNmodel:forward{ torch.Tensor(2), torch.Tensor(1) })
 
@@ -51,7 +51,7 @@ for L = 1, opt.rnn_layers do
   table.insert(init_state, h_init:clone())
 end
 
-local params, grad_params 
+local params, grad_params
 -- get flattened parameters tensor
 -- params, grad_params = model_utils.combine_all_parameters(protos.rnn)
 params, grad_params = protos.rnn:getParameters()
@@ -65,7 +65,10 @@ clones.rnn = {}
 clones.criterion = {}
 for name, proto in pairs(protos) do
   print('cloning ' .. name)
-  clones[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
+  --clones[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
+  for i=1,opt.seq_length do
+     clones[name][i] = proto:clone('weight','bias','gradWeight','gradBias')
+   end
 end
 
 
@@ -90,7 +93,7 @@ function feval(p)
   grad_params:zero()
 
   -- bo variable creates batches on the fly
-  
+
   -- forward pass ---------------------------------------------------------------
   local rnn_state = {[0]=init_state_global} -- initial state
   local predictions = {}
@@ -119,7 +122,7 @@ function feval(p)
     drnn_state[t-1] = {}
     for k,v in pairs(dlst) do
       if k > 1 then -- k == 1 is gradient on x, which we dont need
-        -- note we do k-1 because first item is dembeddings, and then follow the 
+        -- note we do k-1 because first item is dembeddings, and then follow the
         -- derivatives of the state, starting at index 2. I know...
         drnn_state[t-1][k-1] = v
       end
@@ -158,7 +161,7 @@ end
 bo = 0
 function test()
   -- bo variable creates batches on the fly
-  
+
   -- forward pass ---------------------------------------------------------------
   local rnn_state = {[0]=init_state} -- initial state
   local predictions = {}
