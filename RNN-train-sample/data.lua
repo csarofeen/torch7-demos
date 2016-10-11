@@ -14,8 +14,8 @@ function data.getData(trainSize, seqLength)
    end
 
    -- Mapping of input from R 1xtrainSize to 2xtrainSize
-   -- 1 => <1, 0>
-   -- 2 => <0, 1>
+   -- a => 1 => <1, 0>
+   -- b => 2 => <0, 1>
 
    local x = torch.zeros(2, trainSize)
    for i = 1, trainSize do

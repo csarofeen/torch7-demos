@@ -1,3 +1,5 @@
+-- based on: https://raw.githubusercontent.com/karpathy/char-rnn/master/model/RNN.lua
+
 require 'nn'
 require 'nngraph'
 require 'optim'
@@ -101,10 +103,6 @@ local function feval()
    delta[seqLength] = cloneTable(hDefault)
    for t = seqLength, 1, -1 do
       local deltaL = clones.criterion[t]:backward(yHat[t], y[1][t+bo])
-      -- print(deltaL)
-      -- print(yHat[t])
-      -- print(y[1][t+bo])
-      -- io.read()
       table.insert(delta[t], deltaL)
       local dStates = clones.model[t]:backward({x[{ {}, {t+bo} }]:t(), unpack(h[t-1])}, delta[t])
       delta[t-1] = {}
@@ -165,12 +163,14 @@ function test()
    local check = 0
    local color = nc
    local mappedCharacter = 'a'
+   -- Mapping vector into character based on encoding used in data.lua
    if x[1][4+bo] == 0 then
       mappedCharacter = 'b'
    else
       mappedCharacter = 'a'
    end
 
+   -- Check if input provided was the desired sequence
    if x[1][1+bo] == 1 and x[1][2+bo] == 0 and x[1][3+bo] == 0 and x[1][4+bo] == 1 then
       check = 1
    else
@@ -189,7 +189,10 @@ function test()
    bo = bo + 1
 end
 
-print('\n')
+print("\nNotation for output:")
+print("====================")
+print(g .. "Green" .. nc .. " Indicates correct detection")
+print(r .. "Red" .. nc .. "   Indicates false detection\n")
 for i = 1, 150 do
    test()
 end
