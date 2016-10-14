@@ -5,6 +5,9 @@
 *.log
 .DS_Store
 *.t7
+*.svg
+*.dot
+*.swp
 
 # Ignore all scratch dir.
 scratch/

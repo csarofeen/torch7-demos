@@ -4,14 +4,14 @@ require 'nn'
 require 'nngraph'
 require 'optim'
 
-local data = require 'data.lua'
-local rnn = require 'RNN.lua'
+local data = require 'data'
+local rnn = require 'RNN'
 torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Hyperparameter definitions
 local batchSize = 1        -- # # of batches
 local dictionarySize = 2   -- Sequence of 2 values
-local L = 2                -- # of layers
+local L = 1                -- # of layers
 local M = 10               -- # of neurons in a layer
 local seqLength = 4        -- Length of sequence
 local trainSize = 10000    -- # of input sequence
@@ -46,6 +46,7 @@ for name, proto in pairs(prototype) do
       clones[name][i] = proto:clone('weight', 'bias', 'gradWeight', 'gradBias')
    end
 end
+graph.dot(prototype.model.fg, 'Model', 'Model')
 
 local function cloneTable(tensor_list)
    -- takes a table of tensors and returns a table of cloned tensors

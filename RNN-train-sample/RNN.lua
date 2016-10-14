@@ -5,33 +5,33 @@
 local RNN = {}
 
 --[[
-                  +-----------+
-                  |           |
-                  |   +----+  |
-                  V   |    |--+
-            +--->(+)->| h1 |
-            |         |    |------+
-            |         +----+      |
-            |                     |
-            |                     |
-            |                     |
-            |     +-----------+   |
-            |     |           |   |
-      +---+ |     |   +----+  |   |     +---+
-      |   | |     V   |    |--+   +---->|   |
-      | x +-+--->(+)->| h2 |   +------->| y |
-      |   | |         |    |---+  +---->|   |
-      +---+ |         +----+      |     +---+
-            |                     |
-            |                     |
-            |                     |
-            |     +-----------+   |
-            |     |           |   |
-            |     |   +----+  |   |
-            |     V   |    |--+   |
-            +--->(+)->| h3 |      |
-                      |    |------+
-                      +----+
+                    +-----------+
+                    |           |
+                    |   +----+  |
+                    V   |    |--+
+              +--->(+)->| h1 |
+              |x1       |    |------+
+              |         +----+      |
+              |                     |
+              |                     |
+              |                     |
+              |     +-----------+   |
+              |     |           |   |
+      +-----+ |     |   +----+  |   |     +---+
+      |   1 | |     V   |    |--+   +---->|   |
+      | x:2 +-+--->(+)->| h2 |   +------->| y |
+      |   3 | |x2       |    |---+  +---->|   |
+      +-----+ |         +----+      |     +---+
+              |                     |
+              |                     |
+              |                     |
+              |     +-----------+   |
+              |     |           |   |
+              |     |   +----+  |   |
+              |     V   |    |--+   |
+              +--->(+)->| h3 |      |
+               x3       |    |------+
+                        +----+
 
 --]]
 
@@ -50,22 +50,34 @@ function RNN.getModel(N, M, L)
    local outputs = {}
    for j = 1, L do
       if j == 1 then
-         x = inputs[j]
+         x = inputs[j]:annotate{name = 'Input',
+                       graphAttributes = {
+                       style = 'filled',
+                       fillcolor = 'moccasin'}}
          n = N
       else
          x = outputs[j-1]
          n = M
       end
 
-      local nextH = {x, inputs[j+1]} - nn.JoinTable(2) - nn.Linear(n+M, M)
+      local hPrev = inputs[j+1]:annotate{name = 'Previous state',
+                                graphAttributes = {
+                                style = 'filled',
+                                fillcolor = 'lightpink'}}
+      local nextH = ({x, hPrev} - nn.JoinTable(2) - nn.Linear(n+M, M))
+                    :annotate{name = 'Hidden layer: ' .. tostring(j),
+                     graphAttributes = {
+                     style = 'filled',
+                     fillcolor = 'skyblue'}}
 
       table.insert(outputs, nextH)
    end
 
-   local zL_1 = outputs[#outputs]
-
-   local proj = zL_1 - nn.Linear(M, N)
-   local logsoft = nn.LogSoftMax()(proj)
+   local logsoft = (outputs[#outputs] - nn.Linear(M, N) - nn.LogSoftMax())
+                   :annotate{name = 'Prediction',
+                    graphAttributes = {
+                    style = 'filled',
+                    fillcolor = 'springgreen'}}
    table.insert(outputs, logsoft)
 
    return nn.gModule(inputs, outputs)
