@@ -57,16 +57,14 @@ function RNN.getModel(N, M, L)
          n = M
       end
 
-      local i2h = nn.Linear(n, M)(x)
-      local h2h = nn.Linear(M, M)(inputs[j+1])
-      local nextH = nn.Tanh()(nn.CAddTable()({i2h, h2h}))
+      local nextH = {x, inputs[j+1]} - nn.JoinTable(2) - nn.Linear(n+M, M)
 
       table.insert(outputs, nextH)
    end
 
    local zL_1 = outputs[#outputs]
 
-   local proj = nn.Linear(M, N)(zL_1)
+   local proj = zL_1 - nn.Linear(M, N)
    local logsoft = nn.LogSoftMax()(proj)
    table.insert(outputs, logsoft)
 

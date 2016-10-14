@@ -11,7 +11,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 -- Hyperparameter definitions
 local batchSize = 1        -- # # of batches
 local dictionarySize = 2   -- Sequence of 2 values
-local L = 1                -- # of layers
+local L = 2                -- # of layers
 local M = 10               -- # of neurons in a layer
 local seqLength = 4        -- Length of sequence
 local trainSize = 10000    -- # of input sequence
