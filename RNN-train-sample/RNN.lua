@@ -156,10 +156,7 @@ function RNN.getModel(N, M, nHL, seq)
    -- Output is table of {Predictions, Hidden states of last sequence}
    local g = nn.gModule({inputSequence, table.unpack(H0)}, outputs)
 
-   graph.dot(g.fg, 'Whole model', 'Whole model')
-   graph.dot(prototype.fg, 'RNN model', 'RNN model')
-
-   return g
+   return g, clones[1]
 end
 
 return RNN
