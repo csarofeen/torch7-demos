@@ -22,7 +22,7 @@ function data.getData(trainSize, seqLength)
       if s[i] == 1 then
          x[{{}, {i}}] = torch.Tensor({1, 0})
       else
-         x[{{}, {i}}] = torch.Tensor({0, 0})
+         x[{{}, {i}}] = torch.Tensor({0, 1})
       end
    end
    return x, y
