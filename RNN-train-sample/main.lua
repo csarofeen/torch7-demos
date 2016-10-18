@@ -1,9 +1,10 @@
+--------------------------------------------------------------------------------
 -- Training and testing of RNN model
 -- for detection of sequence: 'abba'
 --
--- Abhishek Chaurasia
+-- Written by: Abhishek Chaurasia
+--------------------------------------------------------------------------------
 
-require 'nn'
 require 'nngraph'
 require 'optim'
 
@@ -14,31 +15,32 @@ local rnn = require 'RNN'
 torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Hyperparameter definitions
-local batchSize = 1        -- # # of batches
 local dictionarySize = 2   -- Sequence of 2 values
+local M = 3                -- # of neurons in a layer
 local nHL = 2              -- # of hidden layers
-local M = 10               -- # of neurons in a layer
+local K = 2                -- # of classes
 local seqLength = 4        -- Length of sequence
 local trainSize = 10000    -- # of input sequence
+-- To get better detection; increase # of nHL or M or both
 
 local lr = 2e-3
 local lrd = 0.95
 local optimState = {learningRate = lr, alpha = lrd}
 
--- Colorizing print statement for testing results
-local green       = '\27[32m'
-local underline   = '\27[4m'
-local resetStyle = '\27[0m'
+-- Colorizing print statement for test results
+local truePositive  = '\27[32m'
+local trueNegative  = '\27[0m'
+local falsePositive = '\27[41m'
+local falseNegative = '\27[4m'
 
 -- x : Inputs => Dimension : dictionarySize x trainSize
 -- y : Labels => Dimension : 1 x trainSize
 local x, y = data.getData(trainSize, seqLength)
 
 -- Get the model which is unrolled in time
-local model, prototype = rnn.getModel(dictionarySize, M, nHL, seqLength)
+local model, prototype = rnn.getModel(dictionarySize, M, nHL, K, seqLength)
 
 local criterion = nn.ClassNLLCriterion()
--- criterion.sizeAverage = false             -- We are not working in batch mode
 
 local w, dE_dw = model:getParameters()
 print('# of parameters in the model: ' .. w:nElement())
@@ -57,6 +59,20 @@ prototype:forward({x[{ {}, {1} }]:squeeze(), table.unpack(h)})
 
 graph.dot(model.fg, 'Whole model', 'Whole model')
 graph.dot(prototype.fg, 'RNN model', 'RNN model')
+
+-- Converts input tensor into table of dimension equal to first dimension of input tensor
+-- and adds padding of zeros, which in this case are states
+local function tensor2Table(inputTensor, padding)
+   local outputTable = {}
+   for t = 1, inputTensor:size(1) do
+      outputTable[t] = inputTensor[t]
+   end
+
+   for l = 1, padding do
+      outputTable[l + inputTensor:size(1)] = h0[l]:clone()
+   end
+   return outputTable
+end
 
 --------------------------------------------------------------------------------------
 -- Training
@@ -95,14 +111,8 @@ for itr = 1, trainSize - seqLength, seqLength do
 
       local dE_dh = criterion:backward(prediction, ySeq)
 
-      local dE_dhTable = {}
-      for t = 1, seqLength do
-         dE_dhTable[t] = dE_dh[t]
-      end
-
-      for l = 1, nHL do
-         dE_dhTable[l + seqLength] = h0[l]:clone()
-      end
+      -- convert dE_dh into table and assign Zero for states
+      local dE_dhTable = tensor2Table(dE_dh, nHL)
 
       model:backward({xSeq, table.unpack(h)}, dE_dhTable)
 
@@ -117,7 +127,7 @@ for itr = 1, trainSize - seqLength, seqLength do
    local err
    w, err = optim.rmsprop(feval, w, optimState)
    trainError = trainError + err[1]
-   -- gradParams:clamp(-gradClip, gradClip)
+
    if itr % (trainSize/(10*seqLength)) == 1 then
       print(string.format("Iteration %8d, Training Error/seq_len = %4.4f, gradnorm = %4.4e",
                            itr, err[1] / seqLength, dE_dw:norm()))
@@ -139,10 +149,23 @@ for l = 1, nHL do
    h[l] = h0[l]:clone()                -- Reset the states
 end
 
-local seqBuffer = {}
-local nPop = 0
+local seqBuffer = {}                   -- Buffer to store previous input characters
+local nPopTP = 0
+local nPopFP = 0
+local nPopFN = 0
 local pointer = 4
-local style = resetFormat
+local style = trueNegative
+
+-- get the style and update count
+local function getStyle(nPop, style, prevStyle)
+   if nPop > 0 then
+      nPop = nPop - 1
+      io.write(style)
+   else
+      style = prevStyle
+   end
+   return nPop, style
+end
 
 local function test(t)
    local states = prototype:forward({x[{ {}, {t} }]:squeeze(), table.unpack(h)})
@@ -154,7 +177,6 @@ local function test(t)
    -- Prediction which is of size 2
    local prediction = states[nHL + 1]
 
-   -- print("Sequence: ", x[1][1+bo], x[1][2+bo], x[1][3+bo], x[1][4+bo])
    local check = 0
    local mappedCharacter = 'a'
    -- Mapping vector into character based on encoding used in data.lua
@@ -179,13 +201,15 @@ local function test(t)
       if idx[1] == y[1][t] then
          -- Change style to green when sequence is detected
          if check == 1 then
-            style = green
-            nPop = seqLength
+            nPopTP = seqLength
          end
       else
-         -- In case of false detection, underline the sequence
-         style = underline
-         nPop = seqLength
+         -- In case of false prediction
+         if check == 1 then
+            nPopFN = seqLength
+         else
+            nPopFP = seqLength
+         end
       end
 
       local popLocation = pointer + 1
@@ -195,11 +219,11 @@ local function test(t)
 
       -- When whole correct/incorrect sequence has been displayed with the given style;
       -- reset the style
-      if nPop > 0 then
-         nPop = nPop - 1
-      else
-         style = resetStyle
-      end
+      style = trueNegative
+      io.write(style)
+      nPopTP, style = getStyle(nPopTP, truePositive, style)
+      nPopFP, style = getStyle(nPopFP, falsePositive, style)
+      nPopFN, style = getStyle(nPopFN, falseNegative, style)
 
       -- Display the sequence with style
       io.write(style .. seqBuffer[popLocation])
@@ -217,8 +241,12 @@ end
 
 print("\nNotation for output:")
 print("====================")
-print(green .. "Green    " .. resetStyle .. " Indicates correct detection")
-print(underline .. "Underline" .. resetStyle .. " Indicates false detection\n")
+print("+ " .. truePositive ..  "True Positive" .. trueNegative)
+print("+ " .. trueNegative ..  "True Negative" .. trueNegative)
+print("+ " .. falsePositive .. "False Positive" .. trueNegative)
+print("+ " .. falseNegative .. "False Negative" .. trueNegative)
+print("\n")
+
 for i = 1, 150 do
    test(i)
 end
