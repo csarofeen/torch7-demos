@@ -42,7 +42,7 @@ local RNN = {}
 -- nHL : # of hidden layers
 
 -- Returns a simple RNN model
-local function getPrototype(N, M, nHL)
+local function getPrototype(N, M, nHL, K)
    local inputs = {}
    table.insert(inputs, nn.Identity()())       -- input X
    for j = 1, nHL do
@@ -78,7 +78,7 @@ local function getPrototype(N, M, nHL)
       table.insert(outputs, nextH)
    end
 
-   local logsoft = (outputs[#outputs] - nn.Linear(M, N) - nn.LogSoftMax())
+   local logsoft = (outputs[#outputs] - nn.Linear(M, K) - nn.LogSoftMax())
                    :annotate{name = 'Prediction',
                     graphAttributes = {
                     style = 'filled',
@@ -90,8 +90,8 @@ local function getPrototype(N, M, nHL)
 end
 
 -- Links all the RNN models, given the # of sequences
-function RNN.getModel(N, M, nHL, seq)
-   local prototype = getPrototype(N, M, nHL)
+function RNN.getModel(N, M, nHL, K, seq)
+   local prototype = getPrototype(N, M, nHL, K)
 
    local clones = {}
    for i = 1, seq do
