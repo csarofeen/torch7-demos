@@ -60,6 +60,15 @@ prototype:forward({x[{ {}, {1} }]:squeeze(), table.unpack(h)})
 graph.dot(model.fg, 'Whole model', 'Whole model')
 graph.dot(prototype.fg, 'RNN model', 'RNN model')
 
+-- Converts the output table into a Tensor that can be processed by the Criterion
+local function table2Tensor(s)
+   local p = s[1]
+   for t = 2, seqLength do
+      p =  p:cat(s[t], 2)
+   end
+   return p:t()
+end
+
 -- Converts input tensor into table of dimension equal to first dimension of input tensor
 -- and adds padding of zeros, which in this case are states
 local function tensor2Table(inputTensor, padding)
@@ -97,11 +106,7 @@ for itr = 1, trainSize - seqLength, seqLength do
       -- {{y}, {h}}
 
       -- Store predictions
-      local prediction = states[1]
-      for t = 2, seqLength do
-         prediction =  prediction:cat(states[t], 2)
-      end
-      prediction = prediction:t()
+      local prediction = table2Tensor(states)
 
       local err = criterion:forward(prediction, ySeq)
       --------------------------------------------------------------------------------
