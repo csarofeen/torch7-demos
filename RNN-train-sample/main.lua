@@ -8,7 +8,7 @@
 require 'nngraph'
 require 'optim'
 
-torch.manualSeed(1)
+torch.manualSeed(0)
 
 local data = require 'data'
 local rnn = require 'RNN'
@@ -16,14 +16,14 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Hyperparameter definitions
 local dictionarySize = 2   -- Sequence of 2 values
-local M = 3                -- # of neurons in a layer
-local nHL = 2              -- # of hidden layers
+local M = 2                -- # of neurons in a layer
+local nHL = 1              -- # of hidden layers
 local K = 2                -- # of classes
 local seqLength = 4        -- Length of sequence
 local trainSize = 10000    -- # of input sequence
 -- To get better detection; increase # of nHL or M or both
 
-local lr = 2e-3
+local lr = 2e-2
 local lrd = 0.95
 local optimState = {learningRate = lr, alpha = lrd}
 
