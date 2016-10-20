@@ -69,7 +69,7 @@ local function getPrototype(N, M, nHL, K)
                                 fillcolor = 'lightpink'}}
 
       -- Concat input with previous state
-      local nextH = ({x, hPrev} - nn.JoinTable(1) - nn.Linear(n+M, M))
+      local nextH = ({x, hPrev} - nn.JoinTable(1) - nn.Linear(n+M, M) - nn.Tanh())
                     :annotate{name = 'Hidden layer: ' .. tostring(j),
                      graphAttributes = {
                      style = 'filled',
