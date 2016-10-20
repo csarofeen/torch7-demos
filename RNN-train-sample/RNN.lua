@@ -37,40 +37,41 @@ local RNN = {}
 
 --]]
 
--- N : # of inputs
--- M : # of neurons in hidden layer
+-- n   : # of inputs
+-- d   : # of neurons in hidden layer
 -- nHL : # of hidden layers
+-- K   : # of output neurons
 
 -- Returns a simple RNN model
-local function getPrototype(N, M, nHL, K)
+local function getPrototype(n, d, nHL, K)
    local inputs = {}
    table.insert(inputs, nn.Identity()())       -- input X
    for j = 1, nHL do
       table.insert(inputs, nn.Identity()())    -- previous states h[j]
    end
 
-   local x, n
+   local x, nIn
    local outputs = {}
    for j = 1, nHL do
       if j == 1 then
-         x = inputs[j]:annotate{name = 'Input',
+         x = inputs[j]:annotate{name = 'x[t]',
                        graphAttributes = {
                        style = 'filled',
                        fillcolor = 'moccasin'}}
-         n = N
+         nIn = n
       else
          x = outputs[j-1]
-         n = M
+         nIn = d
       end
 
-      local hPrev = inputs[j+1]:annotate{name = 'Previous state',
+      local hPrev = inputs[j+1]:annotate{name = 'h^('..j..')[t-1]',
                                 graphAttributes = {
                                 style = 'filled',
                                 fillcolor = 'lightpink'}}
 
       -- Concat input with previous state
-      local nextH = ({x, hPrev} - nn.JoinTable(1) - nn.Linear(n+M, M) - nn.Tanh())
-                    :annotate{name = 'Hidden layer: ' .. tostring(j),
+      local nextH = ({x, hPrev} - nn.JoinTable(1) - nn.Linear(nIn + d, d) - nn.Tanh())
+                    :annotate{name = 'h^('..j..')[t]',
                      graphAttributes = {
                      style = 'filled',
                      fillcolor = 'skyblue'}}
@@ -78,8 +79,8 @@ local function getPrototype(N, M, nHL, K)
       table.insert(outputs, nextH)
    end
 
-   local logsoft = (outputs[#outputs] - nn.Linear(M, K) - nn.LogSoftMax())
-                   :annotate{name = 'Prediction',
+   local logsoft = (outputs[#outputs] - nn.Linear(d, K) - nn.LogSoftMax())
+                   :annotate{name = 'y\'[t]',
                     graphAttributes = {
                     style = 'filled',
                     fillcolor = 'seagreen1'}}
@@ -90,11 +91,11 @@ local function getPrototype(N, M, nHL, K)
 end
 
 -- Links all the RNN models, given the # of sequences
-function RNN.getModel(N, M, nHL, K, seq)
-   local prototype = getPrototype(N, M, nHL, K)
+function RNN.getModel(n, d, nHL, K, T)
+   local prototype = getPrototype(n, d, nHL, K)
 
    local clones = {}
-   for i = 1, seq do
+   for i = 1, T do
       clones[i] = prototype:clone('weight', 'bias', 'gradWeight', 'gradBias')
    end
 
@@ -107,7 +108,7 @@ function RNN.getModel(N, M, nHL, K, seq)
    for l = 1, nHL do
       H0[l] = nn.Identity()()
       H[l] = H0[l]
-             :annotate{name = 'Previous state layer ' .. tostring(l),
+             :annotate{name = 'h^('..l..')[0]',
               graphAttributes = {
               style = 'filled',
               fillcolor = 'lightpink'}}
@@ -115,37 +116,37 @@ function RNN.getModel(N, M, nHL, K, seq)
 
    local splitInput = inputSequence - nn.SplitTable(1)
 
-   for i = 1, seq do
+   for i = 1, T do
       local x = (splitInput - nn.SelectTable(i))
-                :annotate{name = 'Input ' .. tostring(i),
+                :annotate{name = 'x['..i..']',
                  graphAttributes = {
                  style = 'filled',
                  fillcolor = 'moccasin'}}
 
       local tempStates = ({x, table.unpack(H)} - clones[i])
-                         :annotate{name = 'RNN Model ' .. tostring(i),
+                         :annotate{name = 'RNN['..i..']',
                           graphAttributes = {
                           style = 'filled',
                           fillcolor = 'skyblue'}}
 
       outputs[i] = (tempStates - nn.SelectTable(nHL + 1))  -- Prediction
-                   :annotate{name = 'Prediction',
+                   :annotate{name = 'y\'['..i..']',
                     graphAttributes = {
                     style = 'filled',
                     fillcolor = 'seagreen1'}}
 
-      if i < seq then
+      if i < T then
          for l = 1, nHL do                         -- State values passed to next sequence
             H[l] = (tempStates - nn.SelectTable(l))
-                   :annotate{name = 'Previous state layer ' .. tostring(l),
+                   :annotate{name = 'h^('..l..')['..i..']',
                     graphAttributes = {
                     style = 'filled',
                     fillcolor = 'lightpink'}}
          end
       else
          for l = 1, nHL do                         -- State values passed to next sequence
-            outputs[seq + l] = (tempStates - nn.SelectTable(l))
-                               :annotate{name = 'State of last sequence, layer ' .. tostring(l),
+            outputs[T + l] = (tempStates - nn.SelectTable(l))
+                               :annotate{name = 'h^('..l..')['..i..']',
                                 graphAttributes = {
                                 style = 'filled',
                                 fillcolor = 'lightpink'}}

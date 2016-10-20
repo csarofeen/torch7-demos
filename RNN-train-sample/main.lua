@@ -15,13 +15,13 @@ local rnn = require 'RNN'
 torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Hyperparameter definitions
-local dictionarySize = 2   -- Sequence of 2 values
-local M = 2                -- # of neurons in a layer
+local n = 2                -- Sequence of 2 values
+local d = 2                -- # of neurons in a layer
 local nHL = 1              -- # of hidden layers
 local K = 2                -- # of classes
-local seqLength = 4        -- Length of sequence
+local T = 4                -- Length of sequence
 local trainSize = 10000    -- # of input sequence
--- To get better detection; increase # of nHL or M or both
+-- To get better detection; increase # of nHL or d or both
 
 local lr = 2e-2
 local lrd = 0.95
@@ -33,12 +33,12 @@ local trueNegative  = '\27[0m'
 local falsePositive = '\27[41m'
 local falseNegative = '\27[4m'
 
--- x : Inputs => Dimension : dictionarySize x trainSize
+-- x : Inputs => Dimension : n x trainSize
 -- y : Labels => Dimension : 1 x trainSize
-local x, y = data.getData(trainSize, seqLength)
+local x, y = data.getData(trainSize, T)
 
 -- Get the model which is unrolled in time
-local model, prototype = rnn.getModel(dictionarySize, M, nHL, K, seqLength)
+local model, prototype = rnn.getModel(n, d, nHL, K, T)
 
 local criterion = nn.ClassNLLCriterion()
 
@@ -49,7 +49,7 @@ print('# of parameters in the model: ' .. w:nElement())
 local h0 = {}
 local h = {}
 for l = 1, nHL do
-   h0[l] = torch.zeros(M)
+   h0[l] = torch.zeros(d)
    h[l] = h0[l]:clone()
 end
 
@@ -63,7 +63,7 @@ graph.dot(prototype.fg, 'RNN model', 'RNN model')
 -- Converts the output table into a Tensor that can be processed by the Criterion
 local function table2Tensor(s)
    local p = s[1]:view(1, 2)
-   for t = 2, seqLength do
+   for t = 2, T do
       p =  p:cat(s[t]:view(1, 2), 1)
    end
    return p
@@ -88,9 +88,9 @@ end
 --------------------------------------------------------------------------------------
 local trainError = 0
 
-for itr = 1, trainSize - seqLength, seqLength do
-   local xSeq = x:narrow(1, itr, seqLength)
-   local ySeq = y:narrow(1, itr, seqLength)
+for itr = 1, trainSize - T, T do
+   local xSeq = x:narrow(1, itr, T)
+   local ySeq = y:narrow(1, itr, T)
 
    local feval = function()
       --------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ for itr = 1, trainSize - seqLength, seqLength do
 
       -- Store final output states
       for l = 1, nHL do
-         h[l] = states[l + seqLength]
+         h[l] = states[l + T]
       end
 
       return err, dE_dw
@@ -133,9 +133,9 @@ for itr = 1, trainSize - seqLength, seqLength do
    w, err = optim.rmsprop(feval, w, optimState)
    trainError = trainError + err[1]
 
-   if itr % (trainSize/(10*seqLength)) == 1 then
+   if itr % (trainSize/(10*T)) == 1 then
       print(string.format("Iteration %8d, Training Error/seq_len = %4.4f, gradnorm = %4.4e",
-                           itr, err[1] / seqLength, dE_dw:norm()))
+                           itr, err[1] / T, dE_dw:norm()))
    end
 end
 trainError = trainError/trainSize
@@ -189,7 +189,7 @@ local function test(t)
       mappedCharacter = 'b'
    end
 
-   if t < seqLength then                        -- Queue to store past 4 sequences
+   if t < T then                        -- Queue to store past 4 sequences
       seqBuffer[t] = mappedCharacter
    else
 
@@ -206,19 +206,19 @@ local function test(t)
       if idx[1] == y[t] then
          -- Change style to green when sequence is detected
          if check == 1 then
-            nPopTP = seqLength
+            nPopTP = T
          end
       else
          -- In case of false prediction
          if check == 1 then
-            nPopFN = seqLength
+            nPopFN = T
          else
-            nPopFP = seqLength
+            nPopFP = T
          end
       end
 
       local popLocation = pointer + 1
-      if popLocation == seqLength + 1 then      -- Next pointer will be 1
+      if popLocation == T + 1 then      -- Next pointer will be 1
          popLocation = 1
       end
 
@@ -236,7 +236,7 @@ local function test(t)
       -- Previous element of the queue is replaced with the current element
       seqBuffer[pointer] = mappedCharacter
       -- Increament/Reset the pointer of queue
-      if pointer == seqLength then
+      if pointer == T then
          pointer = 1
       else
          pointer = pointer + 1
