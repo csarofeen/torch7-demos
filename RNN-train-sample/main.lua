@@ -8,7 +8,7 @@
 require 'nngraph'
 require 'optim'
 
-torch.manualSeed(0)
+torch.manualSeed(6)
 
 local data = require 'data'
 local rnn = require 'RNN'
@@ -21,6 +21,7 @@ local nHL = 1              -- # of hidden layers
 local K = 2                -- # of classes
 local T = 4                -- Length of sequence
 local trainSize = 10000    -- # of input sequence
+local testSize = 150       -- # of input sequence
 -- To get better detection; increase # of nHL or d or both
 
 local lr = 2e-2
@@ -150,6 +151,8 @@ prototype:evaluate()
 -- Testing
 --------------------------------------------------------------------------------
 
+local x, y = data.getData(trainSize, T)
+
 for l = 1, nHL do
    h[l] = h0[l]:clone()                -- Reset the states
 end
@@ -252,7 +255,7 @@ print("+ " .. falsePositive .. "False Positive" .. trueNegative)
 print("+ " .. falseNegative .. "False Negative" .. trueNegative)
 print("\n")
 
-for i = 1, 150 do
+for i = 1, testSize do
    test(i)
 end
 print('\n')
