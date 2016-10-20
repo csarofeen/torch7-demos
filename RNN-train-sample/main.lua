@@ -10,9 +10,6 @@ require 'nngraph'
 require 'optim'
 
 torch.manualSeed(6)
-
-local data = require 'data'
-local rnn = require 'RNN'
 torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Hyperparameter definitions
@@ -37,9 +34,11 @@ local falseNegative = '\27[4m'
 
 -- x : Inputs => Dimension : trainSize x n
 -- y : Labels => Dimension : trainSize
+local data = require 'data'
 local x, y = data.getData(trainSize, T)
 
 -- Get the model which is unrolled in time
+local rnn = require 'RNN'
 local model, prototype = rnn.getModel(n, d, nHL, K, T)
 
 local criterion = nn.ClassNLLCriterion()
