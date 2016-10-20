@@ -33,8 +33,8 @@ local trueNegative  = '\27[0m'
 local falsePositive = '\27[41m'
 local falseNegative = '\27[4m'
 
--- x : Inputs => Dimension : n x trainSize
--- y : Labels => Dimension : 1 x trainSize
+-- x : Inputs => Dimension : trainSize x n
+-- y : Labels => Dimension : trainSize
 local x, y = data.getData(trainSize, T)
 
 -- Get the model which is unrolled in time

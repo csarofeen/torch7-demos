@@ -13,7 +13,7 @@ function data.getData(trainSize, seqLength)
       end
    end
 
-   -- Mapping of input from R 1xtrainSize to 2xtrainSize
+   -- Mapping of input from R trainSize to trainSize x 2
    -- a => 1 => <1, 0>
    -- b => 2 => <0, 1>
 
