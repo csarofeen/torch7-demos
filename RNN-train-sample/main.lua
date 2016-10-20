@@ -113,13 +113,12 @@ for itr = 1, trainSize - T, T do
       --------------------------------------------------------------------------------
       -- Backward Pass
       --------------------------------------------------------------------------------
-      model:zeroGradParameters()
-
       local dE_dh = criterion:backward(prediction, ySeq)
 
       -- convert dE_dh into table and assign Zero for states
       local dE_dhTable = tensor2Table(dE_dh, nHL)
 
+      model:zeroGradParameters()
       model:backward({xSeq, table.unpack(h)}, dE_dhTable)
 
       -- Store final output states
