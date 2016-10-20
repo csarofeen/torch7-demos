@@ -54,8 +54,8 @@ for l = 1, nHL do
 end
 
 -- Saving the graphs with input dimension information
-model:forward({x[{ {}, {1, 4} }]:t(), table.unpack(h)})
-prototype:forward({x[{ {}, {1} }]:squeeze(), table.unpack(h)})
+model:forward({x[{ {1, 4}, {} }], table.unpack(h)})
+prototype:forward({x[1], table.unpack(h)})
 
 graph.dot(model.fg, 'Whole model', 'Whole model')
 graph.dot(prototype.fg, 'RNN model', 'RNN model')
@@ -89,8 +89,9 @@ end
 local trainError = 0
 
 for itr = 1, trainSize - seqLength, seqLength do
-   local xSeq = x[{ {}, {itr, itr + seqLength - 1} }]:t()
-   local ySeq = y[{ {1}, {itr, itr + seqLength - 1} }]:squeeze()
+   -- xSeq = x:narrow(1, itr, seqLength)
+   local xSeq = x[{ {itr, itr + seqLength - 1}, {} }]
+   local ySeq = y[{ {itr, itr + seqLength - 1} }]
 
    local feval = function()
       --------------------------------------------------------------------------------
@@ -173,7 +174,7 @@ local function getStyle(nPop, style, prevStyle)
 end
 
 local function test(t)
-   local states = prototype:forward({x[{ {}, {t} }]:squeeze(), table.unpack(h)})
+   local states = prototype:forward({x[t], table.unpack(h)})
 
    -- Final output states which will be used for next input sequence
    for l = 1, nHL do
@@ -185,7 +186,7 @@ local function test(t)
    local check = 0
    local mappedCharacter = 'a'
    -- Mapping vector into character based on encoding used in data.lua
-   if x[1][t] == 0 then
+   if x[t][1] == 0 then
       mappedCharacter = 'b'
    end
 
@@ -194,7 +195,7 @@ local function test(t)
    else
 
       -- Check if input provided was the desired sequence
-      if x[1][t-3] == 1 and x[1][t-2] == 0 and x[1][t-1] == 0 and x[1][t] == 1 then
+      if x[t-3][1] == 1 and x[t-2][1] == 0 and x[t-1][1] == 0 and x[t][1] == 1 then
          check = 1
       else
          check = 0
@@ -203,7 +204,7 @@ local function test(t)
       -- Class 1: Sequence is NOT abba
       -- Class 2: Sequence IS abba
       local max, idx = torch.max(prediction, 1) -- Get the prediction mapped to class
-      if idx[1] == y[1][t] then
+      if idx[1] == y[t] then
          -- Change style to green when sequence is detected
          if check == 1 then
             nPopTP = seqLength
