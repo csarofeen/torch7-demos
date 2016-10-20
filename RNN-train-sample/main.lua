@@ -3,6 +3,7 @@
 -- for detection of sequence: 'abba'
 --
 -- Written by: Abhishek Chaurasia
+-- Reviewed by: Alfredo Canziani, Oct 16
 --------------------------------------------------------------------------------
 
 require 'nngraph'
