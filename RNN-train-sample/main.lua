@@ -89,9 +89,8 @@ end
 local trainError = 0
 
 for itr = 1, trainSize - seqLength, seqLength do
-   -- xSeq = x:narrow(1, itr, seqLength)
-   local xSeq = x[{ {itr, itr + seqLength - 1}, {} }]
-   local ySeq = y[{ {itr, itr + seqLength - 1} }]
+   local xSeq = x:narrow(1, itr, seqLength)
+   local ySeq = y:narrow(1, itr, seqLength)
 
    local feval = function()
       --------------------------------------------------------------------------------
