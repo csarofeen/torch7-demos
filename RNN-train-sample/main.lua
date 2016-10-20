@@ -211,10 +211,7 @@ local function test(t)
          end
       end
 
-      local popLocation = pointer + 1
-      if popLocation == T + 1 then      -- Next pointer will be 1
-         popLocation = 1
-      end
+      local popLocation = pointer % T + 1
 
       -- When whole correct/incorrect sequence has been displayed with the given style;
       -- reset the style
@@ -230,11 +227,7 @@ local function test(t)
       -- Previous element of the queue is replaced with the current element
       seqBuffer[pointer] = mappedCharacter
       -- Increament/Reset the pointer of queue
-      if pointer == T then
-         pointer = 1
-      else
-         pointer = pointer + 1
-      end
+      pointer = popLocation
    end
 end
 
