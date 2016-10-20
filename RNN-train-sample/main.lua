@@ -64,9 +64,7 @@ graph.dot(prototype.fg, 'RNN model', 'RNN model')
 -- Converts the output table into a Tensor that can be processed by the Criterion
 local function table2Tensor(s)
    local p = s[1]:view(1, 2)
-   for t = 2, T do
-      p =  p:cat(s[t]:view(1, 2), 1)
-   end
+   for t = 2, T do p =  p:cat(s[t]:view(1, 2), 1) end
    return p
 end
 
@@ -74,13 +72,8 @@ end
 -- and adds padding of zeros, which in this case are states
 local function tensor2Table(inputTensor, padding)
    local outputTable = {}
-   for t = 1, inputTensor:size(1) do
-      outputTable[t] = inputTensor[t]
-   end
-
-   for l = 1, padding do
-      outputTable[l + inputTensor:size(1)] = h0[l]:clone()
-   end
+   for t = 1, inputTensor:size(1) do outputTable[t] = inputTensor[t] end
+   for l = 1, padding do outputTable[l + inputTensor:size(1)] = h0[l]:clone() end
    return outputTable
 end
 
@@ -122,9 +115,7 @@ for itr = 1, trainSize - T, T do
       model:backward({xSeq, table.unpack(h)}, dE_dhTable)
 
       -- Store final output states
-      for l = 1, nHL do
-         h[l] = states[l + T]
-      end
+      for l = 1, nHL do h[l] = states[l + T] end
 
       return err, dE_dw
    end
@@ -152,9 +143,7 @@ prototype:evaluate()
 
 local x, y = data.getData(trainSize, T)
 
-for l = 1, nHL do
-   h[l] = h0[l]:clone()                -- Reset the states
-end
+for l = 1, nHL do h[l] = h0[l]:clone() end  -- Reset the states
 
 local seqBuffer = {}                   -- Buffer to store previous input characters
 local nPopTP = 0
@@ -178,17 +167,13 @@ local function test(t)
    local states = prototype:forward({x[t], table.unpack(h)})
 
    -- Final output states which will be used for next input sequence
-   for l = 1, nHL do
-      h[l] = states[l]
-   end
+   for l = 1, nHL do h[l] = states[l] end
+
    -- Prediction which is of size 2
    local prediction = states[nHL + 1]
 
-   local mappedCharacter = 'a'
    -- Mapping vector into character based on encoding used in data.lua
-   if x[t][1] == 0 then
-      mappedCharacter = 'b'
-   end
+   local mappedCharacter = x[t][1] == 1 and 'a' or 'b'
 
    if t < T then                        -- Queue to store past 4 sequences
       seqBuffer[t] = mappedCharacter
@@ -199,16 +184,10 @@ local function test(t)
       local max, idx = torch.max(prediction, 1) -- Get the prediction mapped to class
       if idx[1] == y[t] then
          -- Change style to green when sequence is detected
-         if y[t] == 2 then
-            nPopTP = T
-         end
+         if y[t] == 2 then nPopTP = T end
       else
          -- In case of false prediction
-         if y[t] == 2 then
-            nPopFN = T
-         else
-            nPopFP = T
-         end
+         if y[t] == 2 then nPopFN = T else nPopFP = T end
       end
 
       local popLocation = pointer % T + 1
