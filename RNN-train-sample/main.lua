@@ -62,11 +62,11 @@ graph.dot(prototype.fg, 'RNN model', 'RNN model')
 
 -- Converts the output table into a Tensor that can be processed by the Criterion
 local function table2Tensor(s)
-   local p = s[1]
+   local p = s[1]:view(1, 2)
    for t = 2, seqLength do
-      p =  p:cat(s[t], 2)
+      p =  p:cat(s[t]:view(1, 2), 1)
    end
-   return p:t()
+   return p
 end
 
 -- Converts input tensor into table of dimension equal to first dimension of input tensor
