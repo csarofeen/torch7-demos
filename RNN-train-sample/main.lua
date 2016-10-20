@@ -184,7 +184,6 @@ local function test(t)
    -- Prediction which is of size 2
    local prediction = states[nHL + 1]
 
-   local check = 0
    local mappedCharacter = 'a'
    -- Mapping vector into character based on encoding used in data.lua
    if x[t][1] == 0 then
@@ -195,24 +194,17 @@ local function test(t)
       seqBuffer[t] = mappedCharacter
    else
 
-      -- Check if input provided was the desired sequence
-      if x[t-3][1] == 1 and x[t-2][1] == 0 and x[t-1][1] == 0 and x[t][1] == 1 then
-         check = 1
-      else
-         check = 0
-      end
-
       -- Class 1: Sequence is NOT abba
       -- Class 2: Sequence IS abba
       local max, idx = torch.max(prediction, 1) -- Get the prediction mapped to class
       if idx[1] == y[t] then
          -- Change style to green when sequence is detected
-         if check == 1 then
+         if y[t] == 2 then
             nPopTP = T
          end
       else
          -- In case of false prediction
-         if check == 1 then
+         if y[t] == 2 then
             nPopFN = T
          else
             nPopFP = T
