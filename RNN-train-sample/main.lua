@@ -2,8 +2,8 @@
 -- Training and testing of RNN model
 -- for detection of sequence: 'abba'
 --
--- Written by: Abhishek Chaurasia
--- Reviewed by: Alfredo Canziani, Oct 16
+-- Written by : Abhishek Chaurasia,
+-- Reviewed by: Alfredo Canziani
 --------------------------------------------------------------------------------
 
 require 'nngraph'
@@ -11,6 +11,10 @@ require 'optim'
 
 torch.manualSeed(6)
 torch.setdefaulttensortype('torch.FloatTensor')
+
+-- Local packages
+local data = require 'data'
+local rnn = require 'RNN'
 
 -- Hyperparameter definitions
 local n = 2                -- Sequence of 2 values
@@ -34,11 +38,9 @@ local falseNegative = '\27[4m'
 
 -- x : Inputs => Dimension : trainSize x n
 -- y : Labels => Dimension : trainSize
-local data = require 'data'
 local x, y = data.getData(trainSize, T)
 
 -- Get the model which is unrolled in time
-local rnn = require 'RNN'
 local model, prototype = rnn.getModel(n, d, nHL, K, T)
 
 local criterion = nn.ClassNLLCriterion()
@@ -141,7 +143,7 @@ prototype:evaluate()
 -- Testing
 --------------------------------------------------------------------------------
 
-local x, y = data.getData(trainSize, T)
+x, y = data.getData(testSize, T)
 
 for l = 1, nHL do h[l] = h0[l]:clone() end  -- Reset the states
 
