@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Training and testing of RNN model
+-- Training and testing of RNN/LSTM models
 -- for detection of sequence: 'abba'
 --
 -- Written by : Abhishek Chaurasia,
@@ -14,16 +14,17 @@ torch.setdefaulttensortype('torch.FloatTensor')
 
 -- Local packages
 local data = require 'data'
-local rnn = require 'RNN'
+local network = require 'network'
 
 -- Hyperparameter definitions
 local n = 2                -- Sequence of 2 values
-local d = 2                -- # of neurons in a layer
+local d = 3                -- # of neurons in a layer
 local nHL = 1              -- # of hidden layers
 local K = 2                -- # of classes
 local T = 4                -- Length of sequence
 local trainSize = 10000    -- # of input sequence
 local testSize = 150       -- # of input sequence
+local choice = 'GRU'
 -- To get better detection; increase # of nHL or d or both
 
 local lr = 2e-2
@@ -41,7 +42,7 @@ local falseNegative = '\27[4m'
 local x, y = data.getData(trainSize, T)
 
 -- Get the model which is unrolled in time
-local model, prototype = rnn.getModel(n, d, nHL, K, T)
+local model, prototype = network.getModel(n, d, nHL, K, T, choice)
 
 local criterion = nn.ClassNLLCriterion()
 
@@ -56,12 +57,20 @@ for l = 1, nHL do
    h[l] = h0[l]:clone()
 end
 
+if choice == 'GRU' then
+   h0[nHL + 1] = torch.ones(d)
+   h[nHL + 1] = h0[nHL + 1]:clone()
+end
+
+print(truePositive .. 'Training ' .. choice .. ' model' .. trueNegative)
+
 -- Saving the graphs with input dimension information
 model:forward({x[{ {1, 4}, {} }], table.unpack(h)})
 prototype:forward({x[1], table.unpack(h)})
 
-graph.dot(model.fg, 'Whole model', 'Whole model')
-graph.dot(prototype.fg, 'RNN model', 'RNN model')
+if not paths.dirp('graphs') then paths.mkdir('graphs') end
+graph.dot(model.fg, 'model', 'graphs/model')
+graph.dot(prototype.fg, 'prototype', 'graphs/prototype')
 
 -- Converts the output table into a Tensor that can be processed by the Criterion
 local function table2Tensor(s)
@@ -97,7 +106,7 @@ for itr = 1, trainSize - T, T do
       -- Input to the model is table of tables
       -- {x_seq, h1, h2, ..., h_nHL}
       local states = model:forward({xSeq, table.unpack(h)})
-      -- States is the output returned from the RNN model
+      -- States is the output returned from the selected models
       -- Contains predictions + tables of hidden layers
       -- {{y}, {h}}
 
