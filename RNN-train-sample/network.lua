@@ -12,12 +12,12 @@ nngraph.setDebug(true)
 -- K   : # of output neurons
 
 -- Links all the prototypes, given the # of sequences
-function network.getModel(n, d, nHL, K, T, choice)
+function network.getModel(n, d, nHL, K, T, mode)
    local prototype
-   if choice == 'RNN' then
+   if mode == 'RNN' then
       local RNN = require 'RNN'
       prototype = RNN.getPrototype(n, d, nHL, K)
-   elseif choice == 'GRU' then
+   elseif mode == 'GRU' then
       local GRU = require 'GRU'
       prototype = GRU.getPrototype(n, d, nHL, K)
    else
@@ -44,7 +44,7 @@ function network.getModel(n, d, nHL, K, T, choice)
               fillcolor = 'lightpink'}}
    end
 
-   if choice == 'GRU' then
+   if mode == 'GRU' then
       H0[nHL + 1] = nn.Identity()()
       H[nHL + 1] = H0[nHL + 1]
              :annotate{name = 'Ones'}
@@ -60,7 +60,7 @@ function network.getModel(n, d, nHL, K, T, choice)
                  fillcolor = 'moccasin'}}
 
       local tempStates = ({x, table.unpack(H)} - clones[i])
-                         :annotate{name = choice .. '['..i..']',
+                         :annotate{name = mode .. '['..i..']',
                           graphAttributes = {
                           style = 'filled',
                           fillcolor = 'skyblue'}}
@@ -78,7 +78,7 @@ function network.getModel(n, d, nHL, K, T, choice)
                     graphAttributes = {
                     style = 'filled',
                     fillcolor = 'lightpink'}}
-            if choice == 'GRU' then
+            if mode == 'GRU' then
                H[nHL + 1] = H0[nHL + 1]
                             :annotate{name = 'Ones'}
             end

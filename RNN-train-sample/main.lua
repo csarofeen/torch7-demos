@@ -24,7 +24,7 @@ local K = 2                -- # of classes
 local T = 4                -- Length of sequence
 local trainSize = 10000    -- # of input sequence
 local testSize = 150       -- # of input sequence
-local choice = 'GRU'
+local mode = 'GRU'         -- RNN type (RNN/GRU)
 -- To get better detection; increase # of nHL or d or both
 
 local lr = 2e-2
@@ -42,7 +42,7 @@ local falseNegative = '\27[4m'
 local x, y = data.getData(trainSize, T)
 
 -- Get the model which is unrolled in time
-local model, prototype = network.getModel(n, d, nHL, K, T, choice)
+local model, prototype = network.getModel(n, d, nHL, K, T, mode)
 
 local criterion = nn.ClassNLLCriterion()
 
@@ -57,12 +57,12 @@ for l = 1, nHL do
    h[l] = h0[l]:clone()
 end
 
-if choice == 'GRU' then
+if mode == 'GRU' then
    h0[nHL + 1] = torch.ones(d)
    h[nHL + 1] = h0[nHL + 1]:clone()
 end
 
-print(truePositive .. 'Training ' .. choice .. ' model' .. trueNegative)
+print(truePositive .. 'Training ' .. mode .. ' model' .. trueNegative)
 
 -- Saving the graphs with input dimension information
 model:forward({x[{ {1, 4}, {} }], table.unpack(h)})
