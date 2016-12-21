@@ -24,6 +24,9 @@ local redH      = '\27[41m'        -- Red highlight
 local underline = '\27[4m'         -- Underline
 
 print(red .. underline .. '\ne-Lab RNN Training Script\n' .. rc)
+--------------------------------------------------------------------------------
+-- Command line options
+--------------------------------------------------------------------------------
 local cmd = torch.CmdLine()
 cmd:text()
 cmd:text()
@@ -41,6 +44,7 @@ cmd:text()
 -- To get better detection; increase # of nHL or d or both
 
 local opt = cmd:parse(arg or {})
+--------------------------------------------------------------------------------
 -- Hyperparameter definitions
 local n   = opt.n
 local d   = opt.d
@@ -54,10 +58,12 @@ local lr   = opt.lr
 local lrd  = opt.lrd
 local optimState = {learningRate = lr, alpha = lrd}
 
+--------------------------------------------------------------------------------
 -- x : Inputs => Dimension : trainSize x n
 -- y : Labels => Dimension : trainSize
 local x, y = data.getData(trainSize, T)
 
+--------------------------------------------------------------------------------
 -- Get the model which is unrolled in time
 local model, prototype = network.getModel(n, d, nHL, K, T, mode)
 
@@ -96,6 +102,7 @@ local function table2Tensor(s)
    return p
 end
 
+--------------------------------------------------------------------------------
 -- Converts input tensor into table of dimension equal to first dimension of input tensor
 -- and adds padding of zeros, which in this case are states
 local function tensor2Table(inputTensor, padding)
@@ -108,8 +115,10 @@ end
 --------------------------------------------------------------------------------------
 -- Training
 --------------------------------------------------------------------------------------
+local timer = torch.Timer()
 local trainError = 0
 
+timer:reset()
 for itr = 1, trainSize - T, T do
    local xSeq = x:narrow(1, itr, T)
    local ySeq = y:narrow(1, itr, T)
@@ -158,17 +167,16 @@ for itr = 1, trainSize - T, T do
    end
 end
 trainError = trainError/trainSize
+local trainTime = timer:time().real
 
 -- Set model into evaluate mode
 model:evaluate()
 prototype:evaluate()
 
--- torch.save('model.net', model)
 -- torch.save('prototype.net', prototype)
 --------------------------------------------------------------------------------
 -- Testing
 --------------------------------------------------------------------------------
-
 x, y = data.getData(testSize, T)
 
 for l = 1, nHL do h[l] = h0[l]:clone() end  -- Reset the states
@@ -244,9 +252,17 @@ print("+ " .. green     .. "True Positive" .. rc)
 print("+ " .. rc        .. "True Negative" .. rc)
 print("+ " .. redH      .. "False Positive" .. rc)
 print("+ " .. underline .. "False Negative" .. rc)
-print("\n")
 
+timer:reset()
 for i = 1, testSize do
    test(i)
 end
+local testTime = timer:time().real
 print('\n')
+print("Training data size: " .. trainSize)
+print("Test     data size: " .. testSize)
+print(string.format("\nTotal train time: %4.0f ms %s||%s Avg. train time: %3.0f us",
+                   (trainTime*1000), red, rc, (trainTime*10^6/trainSize)))
+print(string.format("Total test  time: %4.0f ms %s||%s Avg. test  time: %3.0f us",
+                   (testTime*1000), red, rc, (testTime*10^6/testSize)))
+
