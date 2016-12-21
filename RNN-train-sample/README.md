@@ -5,7 +5,7 @@ Train RNNs to recognize a sequence `abba` in a random `ababbaabbbaaababab` seque
 Version 1. `main.lua`: Send sequecne of 4 to train but test on each character at a time.
 
 ```
-th main.lua
+th main.lua -n 2 -d 2 -mode RNN
 ```
 
 The results will be not optimal (you're using `1` hidden layer with `d = 2` neurons), and you'll be able to appreciate a wide variety of combinations.

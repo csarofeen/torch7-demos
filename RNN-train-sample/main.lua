@@ -16,26 +16,43 @@ torch.setdefaulttensortype('torch.FloatTensor')
 local data = require 'data'
 local network = require 'network'
 
--- Hyperparameter definitions
-local n = 2                -- Sequence of 2 values
-local d = 3                -- # of neurons in a layer
-local nHL = 1              -- # of hidden layers
-local K = 2                -- # of classes
-local T = 4                -- Length of sequence
-local trainSize = 10000    -- # of input sequence
-local testSize = 150       -- # of input sequence
-local mode = 'GRU'         -- RNN type (RNN/GRU)
+-- Colorizing print statement for test results
+local green     = '\27[32m'        -- Green
+local red       = '\27[31m'        -- Red
+local rc        = '\27[0m'         -- Default
+local redH      = '\27[41m'        -- Red highlight
+local underline = '\27[4m'         -- Underline
+
+print(red .. underline .. '\ne-Lab RNN Training Script\n' .. rc)
+local cmd = torch.CmdLine()
+cmd:text()
+cmd:text()
+cmd:option('-n',         2,       'Sequence of 2 values')
+cmd:option('-d',         2,       '# of neurons in a layer')
+cmd:option('-nHL',       1,       '# of hidden layers')
+cmd:option('-K',         2,       '# of classes')
+cmd:option('-T',         4,       'Length of sequence')
+cmd:option('-trainSize', 10000,   '# of input sequence')
+cmd:option('-testSize',  150,     '# of input sequence')
+cmd:option('-mode',     'GRU',    'RNN type (RNN/GRU)')
+cmd:option('-lr',        2e-2,    'Learning rate')
+cmd:option('-lrd',       0.95,    'Learning rate decay')
+cmd:text()
 -- To get better detection; increase # of nHL or d or both
 
-local lr = 2e-2
-local lrd = 0.95
+local opt = cmd:parse(arg or {})
+-- Hyperparameter definitions
+local n   = opt.n
+local d   = opt.d
+local nHL = opt.nHL
+local K   = opt.K
+local T   = opt.T
+local trainSize = opt.trainSize
+local testSize  = opt.testSize
+local mode = opt.mode
+local lr   = opt.lr
+local lrd  = opt.lrd
 local optimState = {learningRate = lr, alpha = lrd}
-
--- Colorizing print statement for test results
-local truePositive  = '\27[32m'
-local trueNegative  = '\27[0m'
-local falsePositive = '\27[41m'
-local falseNegative = '\27[4m'
 
 -- x : Inputs => Dimension : trainSize x n
 -- y : Labels => Dimension : trainSize
@@ -62,7 +79,7 @@ if mode == 'GRU' then
    h[nHL + 1] = h0[nHL + 1]:clone()
 end
 
-print(truePositive .. 'Training ' .. mode .. ' model' .. trueNegative)
+print(green .. 'Training ' .. mode .. ' model' .. rc)
 
 -- Saving the graphs with input dimension information
 model:forward({x[{ {1, 4}, {} }], table.unpack(h)})
@@ -161,7 +178,7 @@ local nPopTP = 0
 local nPopFP = 0
 local nPopFN = 0
 local pointer = 4
-local style = trueNegative
+local style = rc
 
 -- get the style and update count
 local function getStyle(nPop, style, prevStyle)
@@ -205,11 +222,11 @@ local function test(t)
 
       -- When whole correct/incorrect sequence has been displayed with the given style;
       -- reset the style
-      style = trueNegative
+      style = rc
       io.write(style)
-      nPopTP, style = getStyle(nPopTP, truePositive, style)
-      nPopFP, style = getStyle(nPopFP, falsePositive, style)
-      nPopFN, style = getStyle(nPopFN, falseNegative, style)
+      nPopTP, style = getStyle(nPopTP, green, style)
+      nPopFP, style = getStyle(nPopFP, redH, style)
+      nPopFN, style = getStyle(nPopFN, underline, style)
 
       -- Display the sequence with style
       io.write(style .. seqBuffer[popLocation])
@@ -223,10 +240,10 @@ end
 
 print("\nNotation for output:")
 print("====================")
-print("+ " .. truePositive ..  "True Positive" .. trueNegative)
-print("+ " .. trueNegative ..  "True Negative" .. trueNegative)
-print("+ " .. falsePositive .. "False Positive" .. trueNegative)
-print("+ " .. falseNegative .. "False Negative" .. trueNegative)
+print("+ " .. green     .. "True Positive" .. rc)
+print("+ " .. rc        .. "True Negative" .. rc)
+print("+ " .. redH      .. "False Positive" .. rc)
+print("+ " .. underline .. "False Negative" .. rc)
 print("\n")
 
 for i = 1, testSize do
