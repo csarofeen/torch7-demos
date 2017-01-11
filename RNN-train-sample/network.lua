@@ -44,12 +44,6 @@ function network.getModel(n, d, nHL, K, T, mode)
               fillcolor = 'lightpink'}}
    end
 
-   if mode == 'GRU' then
-      H0[nHL + 1] = nn.Identity()()
-      H[nHL + 1] = H0[nHL + 1]
-             :annotate{name = 'Ones'}
-   end
-
    local splitInput = inputSequence - nn.SplitTable(1)
 
    for i = 1, T do
@@ -78,10 +72,6 @@ function network.getModel(n, d, nHL, K, T, mode)
                     graphAttributes = {
                     style = 'filled',
                     fillcolor = 'lightpink'}}
-            if mode == 'GRU' then
-               H[nHL + 1] = H0[nHL + 1]
-                            :annotate{name = 'Ones'}
-            end
          end
       else
          for l = 1, nHL do                         -- State values passed to next sequence

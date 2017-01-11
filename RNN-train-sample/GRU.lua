@@ -11,11 +11,9 @@ local GRU = {}
 function GRU.getPrototype(n, d, nHL, K)
    local inputs = {}
    inputs[1] = nn.Identity()()               -- input X
-   for j = 1, nHL + 1 do
+   for j = 1, nHL do
       table.insert(inputs, nn.Identity()())  -- previous states h[j] + tensor of ones
    end
-
-   local ONES = inputs[nHL + 2]
 
    local x, nIn
    local outputs = {}
@@ -39,15 +37,15 @@ function GRU.getPrototype(n, d, nHL, K)
                            - nn.Sigmoid()
 
       local prodRH = {r, hPrev} - nn.CMulTable()
-      local hTilda = {x, prodRH} - nn.JoinTable(1)
+      local hTilde = {x, prodRH} - nn.JoinTable(1)
                                  - nn.Linear(nIn + d, d)
                                  - nn.Tanh()
 
-      local subZ = {ONES, z} - nn.CSubTable()
+      local subZ = z - nn.AddConstant(-1) - nn.MulConstant(-1)
       local prodZH = {subZ, hPrev} - nn.CMulTable()
-      local prodZhTilda = {z, hTilda} - nn.CMulTable()
+      local prodZhTilde = {z, hTilde} - nn.CMulTable()
 
-      local nextH = {prodZH, prodZhTilda} - nn.CAddTable()
+      local nextH = {prodZH, prodZhTilde} - nn.CAddTable()
 
       table.insert(outputs, nextH)
    end

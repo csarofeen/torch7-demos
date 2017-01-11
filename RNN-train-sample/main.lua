@@ -37,7 +37,7 @@ cmd:option('-K',         2,       '# of classes')
 cmd:option('-T',         4,       'Length of sequence')
 cmd:option('-trainSize', 10000,   '# of input sequence')
 cmd:option('-testSize',  150,     '# of input sequence')
-cmd:option('-mode',     'GRU',    'RNN type (RNN/GRU)')
+cmd:option('-mode',     'RNN',    'RNN type (RNN/GRU)')
 cmd:option('-lr',        2e-2,    'Learning rate')
 cmd:option('-lrd',       0.95,    'Learning rate decay')
 cmd:text()
@@ -78,11 +78,6 @@ local h = {}
 for l = 1, nHL do
    h0[l] = torch.zeros(d)
    h[l] = h0[l]:clone()
-end
-
-if mode == 'GRU' then
-   h0[nHL + 1] = torch.ones(d)
-   h[nHL + 1] = h0[nHL + 1]:clone()
 end
 
 print(green .. 'Training ' .. mode .. ' model' .. rc)
