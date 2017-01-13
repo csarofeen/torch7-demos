@@ -12,7 +12,7 @@ function GRU.getPrototype(n, d, nHL, K)
    local inputs = {}
    inputs[1] = nn.Identity()()               -- input X
    for j = 1, nHL do
-      table.insert(inputs, nn.Identity()())  -- previous states h[j] + tensor of ones
+      table.insert(inputs, nn.Identity()())  -- previous states h[j]
    end
 
    local x, nIn
