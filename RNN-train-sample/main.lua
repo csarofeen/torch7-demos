@@ -37,7 +37,7 @@ cmd:option('-K',         2,       '# of classes')
 cmd:option('-T',         4,       'Length of sequence')
 cmd:option('-trainSize', 10000,   '# of input sequence')
 cmd:option('-testSize',  150,     '# of input sequence')
-cmd:option('-mode',     'RNN',    'RNN type (RNN/GRU)')
+cmd:option('-mode',     'RNN',    'RNN type [RNN|GRU|FW]')
 cmd:option('-lr',        2e-2,    'Learning rate')
 cmd:option('-lrd',       0.95,    'Learning rate decay')
 cmd:text()
@@ -76,8 +76,12 @@ print('# of parameters in the model: ' .. w:nElement())
 local h0 = {}
 local h = {}
 for l = 1, nHL do
-   h0[l] = torch.zeros(d)
-   h[l] = h0[l]:clone()
+   table.insert(h0, torch.zeros(d))
+   table.insert(h, h0[#h0])
+   if mode == 'FW' then -- Add the fast weights matrices A (A1, A2, ..., AnHL)
+      table.insert(h0, torch.zeros(d, d))
+      table.insert(h, h0[#h0])
+   end
 end
 
 print(green .. 'Training ' .. mode .. ' model' .. rc)
@@ -103,7 +107,7 @@ end
 local function tensor2Table(inputTensor, padding)
    local outputTable = {}
    for t = 1, inputTensor:size(1) do outputTable[t] = inputTensor[t] end
-   for l = 1, padding do outputTable[l + inputTensor:size(1)] = h0[l]:clone() end
+   for l = 1, padding do outputTable[l + inputTensor:size(1)] = h0[l] end
    return outputTable
 end
 
@@ -141,13 +145,15 @@ for itr = 1, trainSize - T, T do
       local dE_dh = criterion:backward(prediction, ySeq)
 
       -- convert dE_dh into table and assign Zero for states
-      local dE_dhTable = tensor2Table(dE_dh, nHL)
+      local m = mode == 'FW' and 2 or 1
+      local dE_dhTable = tensor2Table(dE_dh, m*nHL)
 
       model:zeroGradParameters()
       model:backward({xSeq, table.unpack(h)}, dE_dhTable)
 
       -- Store final output states
       for l = 1, nHL do h[l] = states[l + T] end
+      if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = states[l + T] end end
 
       return err, dE_dw
    end
@@ -174,7 +180,8 @@ prototype:evaluate()
 --------------------------------------------------------------------------------
 x, y = data.getData(testSize, T)
 
-for l = 1, nHL do h[l] = h0[l]:clone() end  -- Reset the states
+for l = 1, nHL do h[l] = h0[l] end  -- Reset the states
+if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = h0[l] end end
 
 local seqBuffer = {}                   -- Buffer to store previous input characters
 local nPopTP = 0
@@ -199,9 +206,12 @@ local function test(t)
 
    -- Final output states which will be used for next input sequence
    for l = 1, nHL do h[l] = states[l] end
+   if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = states[l] end end
 
    -- Prediction which is of size 2
-   local prediction = states[nHL + 1]
+   local predIdx = nHL + 1
+   if mode == 'FW' then predIdx = 2 * nHL + 1 end
+   local prediction = states[predIdx]
 
    -- Mapping vector into character based on encoding used in data.lua
    local mappedCharacter = x[t][1] == 1 and 'a' or 'b'
