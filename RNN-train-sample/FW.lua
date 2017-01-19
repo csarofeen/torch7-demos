@@ -19,13 +19,14 @@ local function normalise(d)
    return nn.gModule({input},{output})
 end
 
-function FW.getPrototype(n, d, nHL, K, opt)
+function getUninitPrototype(n, d, nHL, K, opt)
 
    local opt = opt or {}
    local l = opt.lambda or 0.9
    local e = opt.eta or 0.5
    local S = opt.S or 1
    local LayerNorm = opt.LayerNorm or true
+   local affine = {}
 
    local inputs = {}
    inputs[1] = nn.Identity()()               -- input X
@@ -66,8 +67,9 @@ function FW.getPrototype(n, d, nHL, K, opt)
          graphAttributes = { style = 'filled', fillcolor = 'paleturquoise'}
       }
 
+      table.insert(affine, nn.Linear(nIn + d, d))
       local dot = {x, hPrev} - nn.JoinTable(1)
-                             - nn.Linear(nIn + d, d)
+                             - affine[#affine]
       dot:annotate{name = 'dot'}
 
       local hs = (dot - nn.ReLU()):annotate{name = 'h_' .. 0,
@@ -100,7 +102,23 @@ function FW.getPrototype(n, d, nHL, K, opt)
    table.insert(outputs, logsoft)
 
    -- Output is table with {h, prediction}
-   return nn.gModule(inputs, outputs)
+   return nn.gModule(inputs, outputs), affine
+end
+
+-- Properly prototypes initialisation
+function FW.getPrototype(...)
+   local proto, affine = getUninitPrototype(...)
+
+   -- Init W_h to an identity mat scaled by 0.05
+   for _, m in ipairs(affine) do
+      local W = m.weight      -- combined weight matrix
+      local d = W:size(1)     -- hidden size
+      local n = W:size(2) - d -- input size
+      local W_h = W:narrow(2, n+1, d) -- h[t-1] |-> h[t]
+      W_h:copy(torch.eye(d)):mul(0.05)
+   end
+
+   return proto
 end
 
 return FW
