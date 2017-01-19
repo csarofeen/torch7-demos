@@ -12,10 +12,6 @@ require 'optim'
 torch.manualSeed(6)
 torch.setdefaulttensortype('torch.FloatTensor')
 
--- Local packages
-local data = require 'data'
-local network = require 'network'
-
 -- Colorizing print statement for test results
 local green     = '\27[32m'        -- Green
 local red       = '\27[31m'        -- Red
@@ -30,27 +26,28 @@ print(red .. underline .. '\ne-Lab RNN Training Script\n' .. rc)
 local cmd = torch.CmdLine()
 cmd:text()
 cmd:text()
-cmd:option('-n',         2,       'Sequence of 2 values')
 cmd:option('-d',         2,       '# of neurons in a layer')
 cmd:option('-nHL',       1,       '# of hidden layers')
-cmd:option('-K',         2,       '# of classes')
-cmd:option('-T',         4,       'Length of sequence')
+cmd:option('-T',         4,       'Unrolling steps')
+cmd:option('-S',         4,       'Length of sequence')
 cmd:option('-trainSize', 10000,   '# of input sequence')
 cmd:option('-testSize',  150,     '# of input sequence')
 cmd:option('-mode',     'RNN',    'RNN type [RNN|GRU|FW]')
 cmd:option('-lr',        2e-2,    'Learning rate')
 cmd:option('-lrd',       0.95,    'Learning rate decay')
+cmd:option('-ds',       'abba',   'Data set [abba|randomSeq]')
 cmd:text()
 -- To get better detection; increase # of nHL or d or both
 
 local opt = cmd:parse(arg or {})
 --------------------------------------------------------------------------------
 -- Hyperparameter definitions
-local n   = opt.n
+local n   = 2
 local d   = opt.d
 local nHL = opt.nHL
-local K   = opt.K
+local K   = 2
 local T   = opt.T
+local S   = ds == 'abba' and 4 or opt.S
 local trainSize = opt.trainSize
 local testSize  = opt.testSize
 local mode = opt.mode
@@ -58,10 +55,14 @@ local lr   = opt.lr
 local lrd  = opt.lrd
 local optimState = {learningRate = lr, alpha = lrd}
 
+-- Local packages
+local data = opt.ds == 'abba' and require 'data' or require 'longData'
+local network = require 'network'
+
 --------------------------------------------------------------------------------
 -- x : Inputs => Dimension : trainSize x n
 -- y : Labels => Dimension : trainSize
-local x, y = data.getData(trainSize, T)
+local x, y = data.getData(trainSize, S)
 
 --------------------------------------------------------------------------------
 -- Get the model which is unrolled in time
@@ -87,7 +88,7 @@ end
 print(green .. 'Training ' .. mode .. ' model' .. rc)
 
 -- Saving the graphs with input dimension information
-model:forward({x[{ {1, 4}, {} }], table.unpack(h)})
+model:forward({x[{ {1, T}, {} }], table.unpack(h)})
 prototype:forward({x[1], table.unpack(h)})
 
 if not paths.dirp('graphs') then paths.mkdir('graphs') end
@@ -162,7 +163,7 @@ for itr = 1, trainSize - T, T do
    w, err = optim.rmsprop(feval, w, optimState)
    trainError = trainError + err[1]
 
-   if itr % (trainSize/(10*T)) == 1 then
+   if ((itr - 1) / T) % math.floor((trainSize - T - 1)/100) == 0 then
       print(string.format("Iteration %8d, Training Error/seq_len = %4.4f, gradnorm = %4.4e",
                            itr, err[1] / T, dE_dw:norm()))
    end
@@ -178,7 +179,7 @@ prototype:evaluate()
 --------------------------------------------------------------------------------
 -- Testing
 --------------------------------------------------------------------------------
-x, y = data.getData(testSize, T)
+x, y = data.getData(testSize, S)
 
 for l = 1, nHL do h[l] = h0[l] end  -- Reset the states
 if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = h0[l] end end
@@ -187,7 +188,7 @@ local seqBuffer = {}                   -- Buffer to store previous input charact
 local nPopTP = 0
 local nPopFP = 0
 local nPopFN = 0
-local pointer = 4
+local pointer = S
 local style = rc
 
 -- get the style and update count
@@ -216,7 +217,7 @@ local function test(t)
    -- Mapping vector into character based on encoding used in data.lua
    local mappedCharacter = x[t][1] == 1 and 'a' or 'b'
 
-   if t < T then                        -- Queue to store past 4 sequences
+   if t < S then                        -- Queue to store past 4 sequences
       seqBuffer[t] = mappedCharacter
    else
 
@@ -225,13 +226,13 @@ local function test(t)
       local max, idx = torch.max(prediction, 1) -- Get the prediction mapped to class
       if idx[1] == y[t] then
          -- Change style to green when sequence is detected
-         if y[t] == 2 then nPopTP = T end
+         if y[t] == 2 then nPopTP = S end
       else
          -- In case of false prediction
-         if y[t] == 2 then nPopFN = T else nPopFP = T end
+         if y[t] == 2 then nPopFN = S else nPopFP = S end
       end
 
-      local popLocation = pointer % T + 1
+      local popLocation = pointer % S + 1
 
       -- When whole correct/incorrect sequence has been displayed with the given style;
       -- reset the style
