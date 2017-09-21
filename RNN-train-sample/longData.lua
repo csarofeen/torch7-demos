@@ -5,7 +5,7 @@ local debug = false
 function data.getData(trainSize, seqLength)
    -- Get key
    if not key then
-      key = torch.Tensor(seqLength):random(2)
+      key = torch.FloatTensor(seqLength):random(2):cuda()
       io.write('Key generated: ' .. sys.COLORS.blue)
       for _, k in ipairs(key:totable()) do
          io.write(k == 1 and 'a' or 'b')
@@ -14,7 +14,7 @@ function data.getData(trainSize, seqLength)
    end
 
    -- Generate random sequence of 1s and 2s
-   local s = torch.Tensor(trainSize):random(2)
+   local s = torch.FloatTensor(trainSize):random(2):cuda()
 
    -- Labels for training
    local y = torch.ones(trainSize)

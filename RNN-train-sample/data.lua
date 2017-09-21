@@ -2,7 +2,7 @@ local data = {}
 
 function data.getData(trainSize, seqLength)
    -- Generate random sequence of 1s and 2s
-   local s = torch.Tensor(trainSize):random(2)
+   local s = torch.FloatTensor(trainSize):random(2):cuda()
 
    -- Labels for training
    local y = torch.ones(trainSize)

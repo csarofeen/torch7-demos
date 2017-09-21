@@ -9,8 +9,11 @@
 require 'nngraph'
 require 'optim'
 
+require 'cunn'
+require 'cutorch'
+
 torch.manualSeed(6)
-torch.setdefaulttensortype('torch.FloatTensor')
+torch.setdefaulttensortype('torch.CudaTensor')
 
 -- Colorizing print statement for test results
 local green     = '\27[32m'        -- Green
@@ -35,17 +38,24 @@ cmd:option('-testSize',  150,     '# of input sequence')
 cmd:option('-mode',     'RNN',    'RNN type [RNN|GRU|FW]')
 cmd:option('-lr',        2e-2,    'Learning rate')
 cmd:option('-lrd',       0.95,    'Learning rate decay')
-cmd:option('-ds',       'abba',   'Data set [abba|randomSeq]')
+cmd:option('-ds',       'randomSeq',   'Data set [abba|randomSeq]')
 cmd:text()
 -- To get better detection; increase # of nHL or d or both
 
 local opt = cmd:parse(arg or {})
 --------------------------------------------------------------------------------
 -- Hyperparameter definitions
-local n   = 2
+-- n   : # of inputs
+-- d   : # of neurons in hidden layer
+-- nHL : # of hidden layers
+-- K   : # of output neurons
+-- S   : Sequence length
+-- T   : Unrolling step length; how many steps you want the model to examine concurrently
+
+local n   = 2       --input feature size
 local d   = opt.d
 local nHL = opt.nHL
-local K   = 2
+local K   = 2       --output feature size
 local T   = opt.T
 local S   = ds == 'abba' and 4 or opt.S
 local trainSize = opt.trainSize
@@ -65,11 +75,12 @@ local network = require 'network'
 local x, y = data.getData(trainSize, S)
 
 --------------------------------------------------------------------------------
--- Get the model which is unrolled in time
 local model, prototype = network.getModel(n, d, nHL, K, T, mode)
+model:cuda()
+prototype:cuda()
 
 local criterion = nn.ClassNLLCriterion()
-
+criterion:cuda()
 local w, dE_dw = model:getParameters()
 print('# of parameters in the model: ' .. w:nElement())
 
@@ -88,16 +99,23 @@ end
 print(green .. 'Training ' .. mode .. ' model' .. rc)
 
 -- Saving the graphs with input dimension information
-model:forward({x[{ {1, T}, {} }], table.unpack(h)})
-prototype:forward({x[1], table.unpack(h)})
-
 if not paths.dirp('graphs') then paths.mkdir('graphs') end
 graph.dot(model.fg, 'model', 'graphs/model')
 graph.dot(prototype.fg, 'prototype', 'graphs/prototype')
 
+-- X is training data, it's 10000x2, x[{ {1, T}, {} }] grabs first T rows
+-- h is just a table with float tensor (len 2) (hidden state)
+
+--print("X:", x[{ {1, T+1}, {} }])
+--print(table.unpack(h))
+
+model:forward({x[{ {1, T}, {} }], table.unpack(h)})
+prototype:forward({x[1], table.unpack(h)})
+
 -- Converts the output table into a Tensor that can be processed by the Criterion
 local function table2Tensor(s)
    local p = s[1]:view(1, 2)
+   --starting at second step, going through all steps, view output as a tensor
    for t = 2, T do p =  p:cat(s[t]:view(1, 2), 1) end
    return p
 end
@@ -119,6 +137,7 @@ local timer = torch.Timer()
 local trainError = 0
 
 timer:reset()
+--loop through sequence 1 at a time
 for itr = 1, trainSize - T, T do
    local xSeq = x:narrow(1, itr, T)
    local ySeq = y:narrow(1, itr, T)
@@ -151,7 +170,6 @@ for itr = 1, trainSize - T, T do
 
       model:zeroGradParameters()
       model:backward({xSeq, table.unpack(h)}, dE_dhTable)
-
       -- Store final output states
       for l = 1, nHL do h[l] = states[l + T] end
       if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = states[l + T] end end
@@ -271,4 +289,3 @@ print(string.format("\nTotal train time: %4.0f ms %s||%s Avg. train time: %3.0f 
                    (trainTime*1000), red, rc, (trainTime*10^6/trainSize)))
 print(string.format("Total test  time: %4.0f ms %s||%s Avg. test  time: %3.0f us",
                    (testTime*1000), red, rc, (testTime*10^6/testSize)))
-
