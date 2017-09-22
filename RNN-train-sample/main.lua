@@ -6,13 +6,14 @@
 -- Reviewed by: Alfredo Canziani
 --------------------------------------------------------------------------------
 
-require 'nngraph'
-require 'optim'
 
+require 'optim'
 require 'cunn'
 require 'cutorch'
+require 'cudnn'
 
-torch.manualSeed(6)
+--torch.manualSeed(6) remove determinism, would need to use cuda based seed
+
 torch.setdefaulttensortype('torch.CudaTensor')
 
 -- Colorizing print statement for test results
@@ -35,7 +36,7 @@ cmd:option('-T',         4,       'Unrolling steps')
 cmd:option('-S',         4,       'Length of sequence')
 cmd:option('-trainSize', 10000,   '# of input sequence')
 cmd:option('-testSize',  150,     '# of input sequence')
-cmd:option('-mode',     'RNN',    'RNN type [RNN|GRU|FW]')
+--cmd:option('-mode',     'RNN',    'RNN type [RNN|GRU|FW]') tanh based RNN was the only one I found to work This is hard coded below
 cmd:option('-lr',        2e-2,    'Learning rate')
 cmd:option('-lrd',       0.95,    'Learning rate decay')
 cmd:option('-ds',       'randomSeq',   'Data set [abba|randomSeq]')
@@ -60,14 +61,13 @@ local T   = opt.T
 local S   = ds == 'abba' and 4 or opt.S
 local trainSize = opt.trainSize
 local testSize  = opt.testSize
-local mode = opt.mode
+local mode = "cudnn.RNNTanh"
 local lr   = opt.lr
 local lrd  = opt.lrd
 local optimState = {learningRate = lr, alpha = lrd}
 
 -- Local packages
 local data = opt.ds == 'abba' and require 'data' or require 'longData'
-local network = require 'network'
 
 --------------------------------------------------------------------------------
 -- x : Inputs => Dimension : trainSize x n
@@ -75,60 +75,23 @@ local network = require 'network'
 local x, y = data.getData(trainSize, S)
 
 --------------------------------------------------------------------------------
-local model, prototype = network.getModel(n, d, nHL, K, T, mode)
-model:cuda()
-prototype:cuda()
+
+model = nn.Sequential()
+model:add(nn.View(1, -1, 2) )
+model:add(cudnn.RNNTanh(n, d, nHL, true, 0, true))
+model:add(nn.View(-1, d))
+model:add(nn.Linear(d, K):cuda())
+model:add(nn.LogSoftMax():cuda())
 
 local criterion = nn.ClassNLLCriterion()
 criterion:cuda()
+
 local w, dE_dw = model:getParameters()
 print('# of parameters in the model: ' .. w:nElement())
 
--- Default intial state set to Zero
-local h0 = {}
-local h = {}
-for l = 1, nHL do
-   table.insert(h0, torch.zeros(d))
-   table.insert(h, h0[#h0])
-   if mode == 'FW' then -- Add the fast weights matrices A (A1, A2, ..., AnHL)
-      table.insert(h0, torch.zeros(d, d))
-      table.insert(h, h0[#h0])
-   end
-end
-
 print(green .. 'Training ' .. mode .. ' model' .. rc)
 
--- Saving the graphs with input dimension information
-if not paths.dirp('graphs') then paths.mkdir('graphs') end
-graph.dot(model.fg, 'model', 'graphs/model')
-graph.dot(prototype.fg, 'prototype', 'graphs/prototype')
-
--- X is training data, it's 10000x2, x[{ {1, T}, {} }] grabs first T rows
--- h is just a table with float tensor (len 2) (hidden state)
-
---print("X:", x[{ {1, T+1}, {} }])
---print(table.unpack(h))
-
-model:forward({x[{ {1, T}, {} }], table.unpack(h)})
-prototype:forward({x[1], table.unpack(h)})
-
--- Converts the output table into a Tensor that can be processed by the Criterion
-local function table2Tensor(s)
-   local p = s[1]:view(1, 2)
-   --starting at second step, going through all steps, view output as a tensor
-   for t = 2, T do p =  p:cat(s[t]:view(1, 2), 1) end
-   return p
-end
-
---------------------------------------------------------------------------------
--- Converts input tensor into table of dimension equal to first dimension of input tensor
--- and adds padding of zeros, which in this case are states
-local function tensor2Table(inputTensor, padding)
-   local outputTable = {}
-   for t = 1, inputTensor:size(1) do outputTable[t] = inputTensor[t] end
-   for l = 1, padding do outputTable[l + inputTensor:size(1)] = h0[l] end
-   return outputTable
-end
+model:forward(x[{ {1, T}, {} }])
 
 --------------------------------------------------------------------------------------
 -- Training
@@ -143,38 +106,13 @@ for itr = 1, trainSize - T, T do
    local ySeq = y:narrow(1, itr, T)
 
    local feval = function()
-      --------------------------------------------------------------------------------
-      -- Forward Pass
-      --------------------------------------------------------------------------------
-      model:training()       -- Model in training mode
-
-      -- Input to the model is table of tables
-      -- {x_seq, h1, h2, ..., h_nHL}
-      local states = model:forward({xSeq, table.unpack(h)})
-      -- States is the output returned from the selected models
-      -- Contains predictions + tables of hidden layers
-      -- {{y}, {h}}
-
-      -- Store predictions
-      local prediction = table2Tensor(states)
-
-      local err = criterion:forward(prediction, ySeq)
-      --------------------------------------------------------------------------------
-      -- Backward Pass
-      --------------------------------------------------------------------------------
-      local dE_dh = criterion:backward(prediction, ySeq)
-
-      -- convert dE_dh into table and assign Zero for states
-      local m = mode == 'FW' and 2 or 1
-      local dE_dhTable = tensor2Table(dE_dh, m*nHL)
-
+      model:training()
       model:zeroGradParameters()
-      model:backward({xSeq, table.unpack(h)}, dE_dhTable)
-      -- Store final output states
-      for l = 1, nHL do h[l] = states[l + T] end
-      if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = states[l + T] end end
-
-      return err, dE_dw
+      prediction = model:forward(xSeq)
+      local err = criterion:forward(prediction, ySeq)
+      local dE_dh = criterion:backward(prediction, ySeq)
+      model:backward(xSeq, criterion.gradInput)
+      return criterion.output, dE_dw
    end
 
    local err
@@ -186,21 +124,17 @@ for itr = 1, trainSize - T, T do
                            itr, err[1] / T, dE_dw:norm()))
    end
 end
+
 trainError = trainError/trainSize
 local trainTime = timer:time().real
 
 -- Set model into evaluate mode
 model:evaluate()
-prototype:evaluate()
 
--- torch.save('prototype.net', prototype)
 --------------------------------------------------------------------------------
 -- Testing
 --------------------------------------------------------------------------------
 x, y = data.getData(testSize, S)
-
-for l = 1, nHL do h[l] = h0[l] end  -- Reset the states
-if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = h0[l] end end
 
 local seqBuffer = {}                   -- Buffer to store previous input characters
 local nPopTP = 0
@@ -221,19 +155,11 @@ local function getStyle(nPop, style, prevStyle)
 end
 
 local function test(t)
-   local states = prototype:forward({x[t], table.unpack(h)})
+   -- local states = prototype:forward({x[t], table.unpack(h)})
+   prediction = model:forward(x[t])
 
-   -- Final output states which will be used for next input sequence
-   for l = 1, nHL do h[l] = states[l] end
-   if mode == 'FW' then for l = nHL+1, 2*nHL do h[l] = states[l] end end
-
-   -- Prediction which is of size 2
-   local predIdx = nHL + 1
-   if mode == 'FW' then predIdx = 2 * nHL + 1 end
-   local prediction = states[predIdx]
-
-   -- Mapping vector into character based on encoding used in data.lua
    local mappedCharacter = x[t][1] == 1 and 'a' or 'b'
+
 
    if t < S then                        -- Queue to store past 4 sequences
       seqBuffer[t] = mappedCharacter
@@ -241,8 +167,10 @@ local function test(t)
 
       -- Class 1: Sequence is NOT abba
       -- Class 2: Sequence IS abba
-      local max, idx = torch.max(prediction, 1) -- Get the prediction mapped to class
-      if idx[1] == y[t] then
+      local max, idx = torch.max(prediction, 2) -- Get the prediction mapped to class
+      idx = idx[1][1] --idx comes out a little different now.
+
+      if idx == y[t] then
          -- Change style to green when sequence is detected
          if y[t] == 2 then nPopTP = S end
       else
@@ -269,6 +197,7 @@ local function test(t)
       pointer = popLocation
    end
 end
+
 
 print("\nNotation for output:")
 print("====================")
